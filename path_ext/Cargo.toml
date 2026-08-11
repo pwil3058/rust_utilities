@@ -1,0 +1,8 @@
+[package]
+name = "path_ext"
+version = "0.1.0"
+edition = "2024"
+authors = ["Peter Williams <pwil3058@.bigpond.net.au> <pwil3058@gmail.com>", ]
+
+[dependencies]
+dirs = "6.0.0"
