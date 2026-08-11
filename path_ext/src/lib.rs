@@ -5,6 +5,7 @@ use std::path::{Component, Path, PathBuf};
 
 pub trait PathExt {
     fn absolute_path_buf(&self) -> Option<PathBuf>;
+    fn relative_path_buf(&self) -> Option<PathBuf>;
 }
 
 impl PathExt for Path {
@@ -43,6 +44,42 @@ impl PathExt for Path {
             }
         } else {
             None
+        }
+    }
+
+    fn relative_path_buf(&self) -> Option<PathBuf> {
+        if self.is_absolute() {
+            if let Ok(current_dir_path) = env::current_dir() {
+                if let Ok(rel_path) = self.strip_prefix(&current_dir_path) {
+                    Some(rel_path.to_path_buf())
+                } else {
+                    None
+                }
+            } else {
+                log::warn!("Can't find current directory???",);
+                None
+            }
+        } else if self.starts_with("~/") {
+            let absolute_path_buf = self.absolute_path_buf()?;
+            let current_dir_path_buf = env::current_dir().ok()?;
+            Some(
+                absolute_path_buf
+                    .strip_prefix(current_dir_path_buf)
+                    .ok()?
+                    .to_path_buf(),
+            )
+        } else {
+            let mut components = self.components();
+            if let Some(first_component) = components.next() {
+                match first_component {
+                    Component::RootDir | Component::Prefix(_) => unreachable!(),
+                    Component::CurDir => Some(components.as_path().to_path_buf()),
+                    Component::Normal(_) => Some(self.to_path_buf()),
+                    _ => None,
+                }
+            } else {
+                Some(self.to_path_buf())
+            }
         }
     }
 }
@@ -94,5 +131,20 @@ mod tests {
         let home_dir = env::home_dir().unwrap();
         let expected = home_dir.join(Path::new("foo/bar"));
         assert_eq!(path.absolute_path_buf(), Some(expected));
+    }
+
+    #[test]
+    fn simple_relative_path_buf_works() {
+        let current_dir = env::current_dir().unwrap();
+        let path = current_dir.join(Path::new("foo/bar"));
+        assert_eq!(path.relative_path_buf(), Some(PathBuf::from("foo/bar")));
+        let path = Path::new("./foo/bar");
+        assert_eq!(path.relative_path_buf(), Some(PathBuf::from("foo/bar")));
+        let path = Path::new("foo/bar");
+        assert_eq!(path.relative_path_buf(), Some(PathBuf::from("foo/bar")));
+        let path = Path::new("/foo/bar");
+        assert_eq!(path.relative_path_buf(), None);
+        let path = Path::new("~/foo/bar");
+        assert_eq!(path.relative_path_buf(), None);
     }
 }
