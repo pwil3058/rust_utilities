@@ -79,7 +79,7 @@ pub fn relative_path_buf(path: impl AsRef<Path>) -> Result<PathBuf, PathExtError
                 break;
             }
         }
-        Ok(path_buf.join(path.as_ref().strip_prefix(&cur_dir)?.to_path_buf()))
+        Ok(path_buf.join(path.as_ref().strip_prefix(&cur_dir)?))
     }
 }
 
