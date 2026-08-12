@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Peter Williams <pwil3058@bigpond.net.au> <pwil3058@gmail.com>.
 
 use std::ffi::OsString;
-use std::fs::{DirEntry, FileType, Metadata, ReadDir};
+use std::fs::{DirEntry, FileType, Metadata};
 use std::path::{self, Component, Path, PathBuf};
 use std::{env, io};
 
@@ -91,14 +91,6 @@ pub struct UsableDirEntry {
     file_type: FileType,
 }
 
-#[cfg(test)]
-impl PartialEq for UsableDirEntry {
-    fn eq(&self, other: &Self) -> bool {
-        self.dir_entry.file_name() == other.dir_entry.file_name()
-            && self.file_type == other.file_type
-    }
-}
-
 impl UsableDirEntry {
     pub fn path(&self) -> PathBuf {
         self.dir_entry.path()
@@ -129,64 +121,7 @@ impl UsableDirEntry {
     }
 }
 
-pub struct UsableDirEntryIter {
-    read_dir: ReadDir,
-}
-
-impl Iterator for UsableDirEntryIter {
-    type Item = UsableDirEntry;
-
-    #[allow(clippy::while_let_on_iterator)]
-    fn next(&mut self) -> Option<Self::Item> {
-        while let Some(result) = self.read_dir.next() {
-            match result {
-                Ok(dir_entry) => match dir_entry.metadata() {
-                    Ok(metadata) => {
-                        let file_type = metadata.file_type();
-                        return Some(UsableDirEntry {
-                            dir_entry,
-                            file_type,
-                        });
-                    }
-                    Err(err) => match err.kind() {
-                        io::ErrorKind::NotFound => {
-                            // We assume that "not found" is due to race condition and ignore it
-                        }
-                        io::ErrorKind::PermissionDenied => {
-                            // benign so just log it in case someone cares
-                            log::info!(
-                                "{:?}: permission denied accessing metadata",
-                                dir_entry.path()
-                            )
-                        }
-                        _ => log::warn!(
-                            "{:?}: unexpected error \"{err}\" accessing metadata",
-                            dir_entry.path()
-                        ),
-                    },
-                },
-                Err(err) => match err.kind() {
-                    io::ErrorKind::NotFound => {
-                        // We assume that "not found" is due to race condition and ignore it
-                    }
-                    io::ErrorKind::PermissionDenied => {
-                        // benign so just log it in case someone cares
-                        log::info!("Permission denied for ReadDir::next()")
-                    }
-                    _ => log::warn!("Unexpected error \"{err}\"  for ReadDir::next()"),
-                },
-            }
-        }
-        None
-    }
-}
-
-pub fn usable_dir_entries(dir_path: &Path) -> Result<UsableDirEntryIter, io::Error> {
-    let read_dir = dir_path.read_dir()?;
-    Ok(UsableDirEntryIter { read_dir })
-}
-
-pub fn filtered_dir_entries(
+pub fn usable_dir_entries(
     dir_path: &Path,
 ) -> Result<impl Iterator<Item = UsableDirEntry>, io::Error> {
     let read_dir = dir_path.read_dir()?;
@@ -237,10 +172,33 @@ pub fn filtered_dir_entries(
     }))
 }
 
+pub fn filtered_dir_entries(dir_path: &Path) -> Result<impl Iterator<Item = DirEntry>, io::Error> {
+    let read_dir = dir_path.read_dir()?;
+    Ok(read_dir.filter_map(|dir_entry| {
+        match dir_entry {
+            Ok(dir_entry) => Some(dir_entry),
+            Err(err) => {
+                match err.kind() {
+                    io::ErrorKind::NotFound => {
+                        // assume race condition and ignore
+                    }
+                    io::ErrorKind::PermissionDenied => {
+                        // benign so just log it in case someone cares
+                        log::info!("Permission denied for ReadDir::next()");
+                    }
+                    _ => log::warn!("Unexpected error \"{err}\"  for ReadDir::next()"),
+                };
+                None
+            }
+        }
+    }))
+}
+
 pub trait PathExt {
     fn absolute_path_buf(&self) -> Result<PathBuf, PathExtError>;
     fn relative_path_buf(&self) -> Result<PathBuf, PathExtError>;
-    fn usable_dir_entries(&self) -> Result<UsableDirEntryIter, io::Error>;
+    fn usable_dir_entries(&self) -> Result<impl Iterator<Item = UsableDirEntry>, io::Error>;
+    fn filtered_dir_entries(&self) -> Result<impl Iterator<Item = DirEntry>, io::Error>;
 }
 
 impl PathExt for Path {
@@ -252,8 +210,12 @@ impl PathExt for Path {
         relative_path_buf(self)
     }
 
-    fn usable_dir_entries(&self) -> Result<UsableDirEntryIter, io::Error> {
+    fn usable_dir_entries(&self) -> Result<impl Iterator<Item = UsableDirEntry>, io::Error> {
         usable_dir_entries(self)
+    }
+
+    fn filtered_dir_entries(&self) -> Result<impl Iterator<Item = DirEntry>, io::Error> {
+        filtered_dir_entries(self)
     }
 }
 
@@ -266,8 +228,12 @@ impl PathExt for PathBuf {
         relative_path_buf(self)
     }
 
-    fn usable_dir_entries(&self) -> Result<UsableDirEntryIter, io::Error> {
+    fn usable_dir_entries(&self) -> Result<impl Iterator<Item = UsableDirEntry>, io::Error> {
         usable_dir_entries(self)
+    }
+
+    fn filtered_dir_entries(&self) -> Result<impl Iterator<Item = DirEntry>, io::Error> {
+        filtered_dir_entries(self)
     }
 }
 
@@ -367,7 +333,7 @@ mod tests {
         assert!(
             usable_dir_entries
                 .zip(filtered_dir_entries)
-                .all(|(l, r)| l == r)
+                .all(|(l, r)| l.file_name() == r.file_name()),
         );
     }
 }
