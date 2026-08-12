@@ -188,7 +188,7 @@ pub fn usable_dir_entries(dir_path: &Path) -> Result<UsableDirEntryIter, io::Err
 
 pub fn filtered_dir_entries(
     dir_path: &Path,
-) -> Result<impl Iterator<Item = UsableDirEntry>, PathExtError> {
+) -> Result<impl Iterator<Item = UsableDirEntry>, io::Error> {
     let read_dir = dir_path.read_dir()?;
     Ok(read_dir.filter_map(|dir_entry| {
         match dir_entry {
