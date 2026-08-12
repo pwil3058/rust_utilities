@@ -91,6 +91,14 @@ pub struct UsableDirEntry {
     file_type: FileType,
 }
 
+#[cfg(test)]
+impl PartialEq for UsableDirEntry {
+    fn eq(&self, other: &Self) -> bool {
+        self.dir_entry.file_name() == other.dir_entry.file_name()
+            && self.file_type == other.file_type
+    }
+}
+
 impl UsableDirEntry {
     pub fn path(&self) -> PathBuf {
         self.dir_entry.path()
@@ -163,9 +171,9 @@ impl Iterator for UsableDirEntryIter {
                     }
                     io::ErrorKind::PermissionDenied => {
                         // benign so just log it in case someone cares
-                        log::info!("Permission denied for ReadDir;;next()")
+                        log::info!("Permission denied for ReadDir::next()")
                     }
-                    _ => log::warn!("Unexpected error \"{err}\"  for ReadDir;;next()"),
+                    _ => log::warn!("Unexpected error \"{err}\"  for ReadDir::next()"),
                 },
             }
         }
@@ -176,6 +184,57 @@ impl Iterator for UsableDirEntryIter {
 pub fn usable_dir_entries(dir_path: &Path) -> Result<UsableDirEntryIter, PathExtError> {
     let read_dir = dir_path.read_dir()?;
     Ok(UsableDirEntryIter { read_dir })
+}
+
+pub fn filtered_dir_entries(
+    dir_path: &Path,
+) -> Result<impl Iterator<Item = UsableDirEntry>, PathExtError> {
+    let read_dir = dir_path.read_dir()?;
+    Ok(read_dir.filter_map(|dir_entry| {
+        match dir_entry {
+            Ok(dir_entry) => match dir_entry.metadata() {
+                Ok(metadata) => {
+                    let file_type = metadata.file_type();
+                    Some(UsableDirEntry {
+                        dir_entry,
+                        file_type,
+                    })
+                }
+                Err(err) => {
+                    match err.kind() {
+                        io::ErrorKind::NotFound => {
+                            // We assume that "not found" is due to race condition and ignore it
+                        }
+                        io::ErrorKind::PermissionDenied => {
+                            // benign so just log it in case someone cares
+                            log::info!(
+                                "{:?}: permission denied accessing metadata",
+                                dir_entry.path()
+                            )
+                        }
+                        _ => log::warn!(
+                            "{:?}: unexpected error \"{err}\" accessing metadata",
+                            dir_entry.path()
+                        ),
+                    }
+                    None
+                }
+            },
+            Err(err) => {
+                match err.kind() {
+                    io::ErrorKind::NotFound => {
+                        // assume race condition and ignore
+                    }
+                    io::ErrorKind::PermissionDenied => {
+                        // benign so just log it in case someone cares
+                        log::info!("Permission denied for ReadDir::next()");
+                    }
+                    _ => log::warn!("Unexpected error \"{err}\"  for ReadDir::next()"),
+                };
+                None
+            }
+        }
+    }))
 }
 
 pub trait PathExt {
@@ -271,10 +330,6 @@ mod tests {
         assert_eq!(path.relative_path_buf(), Ok(PathBuf::from("foo/bar")));
         let path = Path::new("foo/bar");
         assert_eq!(path.relative_path_buf(), Ok(PathBuf::from("foo/bar")));
-        // let path = Path::new("/foo/bar");
-        // assert!(path.relative_path_buf().is_err());
-        // let path = Path::new("~/foo/bar");
-        // assert!(path.relative_path_buf().is_err());
     }
 
     #[test]
@@ -302,5 +357,17 @@ mod tests {
                 break;
             }
         }
+    }
+
+    #[test]
+    fn test_usable_dir_entries_agree() {
+        let current_dir = env::current_dir().unwrap();
+        let usable_dir_entries = current_dir.usable_dir_entries().unwrap();
+        let filtered_dir_entries = filtered_dir_entries(&current_dir).unwrap();
+        assert!(
+            usable_dir_entries
+                .zip(filtered_dir_entries)
+                .all(|(l, r)| l == r)
+        );
     }
 }
