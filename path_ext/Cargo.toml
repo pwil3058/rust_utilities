@@ -7,3 +7,4 @@ authors = ["Peter Williams <pwil3058@.bigpond.net.au> <pwil3058@gmail.com>", ]
 [dependencies]
 dirs = "6.0.0"
 thiserror = "2.0.20"
+log = "0.4.33"

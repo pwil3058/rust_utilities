@@ -1,14 +1,16 @@
 // Copyright (c) 2026 Peter Williams <pwil3058@bigpond.net.au> <pwil3058@gmail.com>.
 
-use std::env;
+use std::ffi::OsString;
+use std::fs::{DirEntry, FileType, Metadata, ReadDir};
 use std::path::{self, Component, Path, PathBuf};
+use std::{env, io};
 
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum PathExtError {
-    #[error("Current directory not found")]
-    CurrDirNotFound(#[from] std::io::Error),
+    #[error("I/O error")]
+    IoError(#[from] std::io::Error),
     #[error("Home directory not found")]
     HomeDirNotFound,
     #[error("Failed to strip path prefix")]
@@ -19,7 +21,7 @@ pub enum PathExtError {
 impl PartialEq for PathExtError {
     fn eq(&self, other: &Self) -> bool {
         match self {
-            Self::CurrDirNotFound(_) => matches!(other, Self::CurrDirNotFound(_)),
+            Self::IoError(_) => matches!(other, Self::IoError(_)),
             Self::HomeDirNotFound => matches!(other, Self::HomeDirNotFound),
             Self::StripPrefixError(_) => matches!(other, Self::StripPrefixError(_)),
         }
@@ -83,9 +85,103 @@ pub fn relative_path_buf(path: impl AsRef<Path>) -> Result<PathBuf, PathExtError
     }
 }
 
+#[derive(Debug)]
+pub struct UsableDirEntry {
+    dir_entry: DirEntry,
+    file_type: FileType,
+}
+
+impl UsableDirEntry {
+    pub fn path(&self) -> PathBuf {
+        self.dir_entry.path()
+    }
+
+    pub fn file_name(&self) -> OsString {
+        self.dir_entry.file_name()
+    }
+
+    pub fn is_dir(&self) -> bool {
+        self.file_type.is_dir()
+    }
+
+    pub fn is_file(&self) -> bool {
+        self.file_type.is_file()
+    }
+
+    pub fn is_symlink(&self) -> bool {
+        self.file_type.is_symlink()
+    }
+
+    pub fn file_type(&self) -> FileType {
+        self.file_type
+    }
+
+    pub fn metadata(&self) -> io::Result<Metadata> {
+        self.dir_entry.metadata()
+    }
+}
+
+pub struct UsableDirEntryIter {
+    read_dir: ReadDir,
+}
+
+impl Iterator for UsableDirEntryIter {
+    type Item = UsableDirEntry;
+
+    #[allow(clippy::while_let_on_iterator)]
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(result) = self.read_dir.next() {
+            match result {
+                Ok(dir_entry) => match dir_entry.metadata() {
+                    Ok(metadata) => {
+                        let file_type = metadata.file_type();
+                        return Some(UsableDirEntry {
+                            dir_entry,
+                            file_type,
+                        });
+                    }
+                    Err(err) => match err.kind() {
+                        io::ErrorKind::NotFound => {
+                            // We assume that "not found" is due to race condition and ignore it
+                        }
+                        io::ErrorKind::PermissionDenied => {
+                            // benign so just log it in case someone cares
+                            log::info!(
+                                "{:?}: permission denied accessing metadata",
+                                dir_entry.path()
+                            )
+                        }
+                        _ => log::warn!(
+                            "{:?}: unexpected error \"{err}\" accessing metadata",
+                            dir_entry.path()
+                        ),
+                    },
+                },
+                Err(err) => match err.kind() {
+                    io::ErrorKind::NotFound => {
+                        // We assume that "not found" is due to race condition and ignore it
+                    }
+                    io::ErrorKind::PermissionDenied => {
+                        // benign so just log it in case someone cares
+                        log::info!("Permission denied for ReadDir;;next()")
+                    }
+                    _ => log::warn!("Unexpected error \"{err}\"  for ReadDir;;next()"),
+                },
+            }
+        }
+        None
+    }
+}
+
+pub fn usable_dir_entries(dir_path: &Path) -> Result<UsableDirEntryIter, PathExtError> {
+    let read_dir = dir_path.read_dir()?;
+    Ok(UsableDirEntryIter { read_dir })
+}
+
 pub trait PathExt {
     fn absolute_path_buf(&self) -> Result<PathBuf, PathExtError>;
     fn relative_path_buf(&self) -> Result<PathBuf, PathExtError>;
+    fn usable_dir_entries(&self) -> Result<UsableDirEntryIter, PathExtError>;
 }
 
 impl PathExt for Path {
@@ -96,6 +192,10 @@ impl PathExt for Path {
     fn relative_path_buf(&self) -> Result<PathBuf, PathExtError> {
         relative_path_buf(self)
     }
+
+    fn usable_dir_entries(&self) -> Result<UsableDirEntryIter, PathExtError> {
+        usable_dir_entries(self)
+    }
 }
 
 impl PathExt for PathBuf {
@@ -105,6 +205,10 @@ impl PathExt for PathBuf {
 
     fn relative_path_buf(&self) -> Result<PathBuf, PathExtError> {
         relative_path_buf(self)
+    }
+
+    fn usable_dir_entries(&self) -> Result<UsableDirEntryIter, PathExtError> {
+        usable_dir_entries(self)
     }
 }
 
