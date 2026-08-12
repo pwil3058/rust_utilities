@@ -9,8 +9,8 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum PathExtError {
-    #[error("I/O error")]
-    IoError(#[from] std::io::Error),
+    #[error("Current directory not found")]
+    CurrDirNotFound(#[from] std::io::Error),
     #[error("Home directory not found")]
     HomeDirNotFound,
     #[error("Failed to strip path prefix")]
@@ -21,7 +21,7 @@ pub enum PathExtError {
 impl PartialEq for PathExtError {
     fn eq(&self, other: &Self) -> bool {
         match self {
-            Self::IoError(_) => matches!(other, Self::IoError(_)),
+            Self::CurrDirNotFound(_) => matches!(other, Self::CurrDirNotFound(_)),
             Self::HomeDirNotFound => matches!(other, Self::HomeDirNotFound),
             Self::StripPrefixError(_) => matches!(other, Self::StripPrefixError(_)),
         }
@@ -181,7 +181,7 @@ impl Iterator for UsableDirEntryIter {
     }
 }
 
-pub fn usable_dir_entries(dir_path: &Path) -> Result<UsableDirEntryIter, PathExtError> {
+pub fn usable_dir_entries(dir_path: &Path) -> Result<UsableDirEntryIter, io::Error> {
     let read_dir = dir_path.read_dir()?;
     Ok(UsableDirEntryIter { read_dir })
 }
@@ -240,7 +240,7 @@ pub fn filtered_dir_entries(
 pub trait PathExt {
     fn absolute_path_buf(&self) -> Result<PathBuf, PathExtError>;
     fn relative_path_buf(&self) -> Result<PathBuf, PathExtError>;
-    fn usable_dir_entries(&self) -> Result<UsableDirEntryIter, PathExtError>;
+    fn usable_dir_entries(&self) -> Result<UsableDirEntryIter, io::Error>;
 }
 
 impl PathExt for Path {
@@ -252,7 +252,7 @@ impl PathExt for Path {
         relative_path_buf(self)
     }
 
-    fn usable_dir_entries(&self) -> Result<UsableDirEntryIter, PathExtError> {
+    fn usable_dir_entries(&self) -> Result<UsableDirEntryIter, io::Error> {
         usable_dir_entries(self)
     }
 }
@@ -266,7 +266,7 @@ impl PathExt for PathBuf {
         relative_path_buf(self)
     }
 
-    fn usable_dir_entries(&self) -> Result<UsableDirEntryIter, PathExtError> {
+    fn usable_dir_entries(&self) -> Result<UsableDirEntryIter, io::Error> {
         usable_dir_entries(self)
     }
 }
