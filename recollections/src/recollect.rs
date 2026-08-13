@@ -14,8 +14,9 @@ pub struct Recollections {
 }
 
 impl Recollections {
-    pub fn set_data_file_path(&mut self, file_path: &path::Path) {
+    pub fn set_data_file_path(&mut self, file_path: impl AsRef<path::Path>) {
         let file_path = file_path
+            .as_ref()
             .absolute_path_buf()
             .expect("failed to get absolute path");
         if !file_path.exists() {
