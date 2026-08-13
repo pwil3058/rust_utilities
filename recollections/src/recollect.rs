@@ -63,4 +63,26 @@ impl Recollections {
                 .expect("Could not unlock recollections data file");
         }
     }
+
+    pub fn recall(&self, name: &str) -> Option<String> {
+        if let Some(ref file_path) = self.file_path {
+            let file = fs::File::open(file_path).expect("Could not open recollections data file");
+            file.lock_shared()
+                .expect("Could not lock recollections data file");
+            let hash_map: RecollectionDb =
+                serde_json::from_reader(&file).expect("Could not read recollections data file");
+            file.unlock()
+                .expect("Could not unlock recollections data file");
+            hash_map.get(name).map(|s| s.to_string())
+        } else {
+            None
+        }
+    }
+
+    pub fn recall_or_else(&self, name: &str, default: &str) -> String {
+        match self.recall(name) {
+            Some(string) => string,
+            None => default.to_string(),
+        }
+    }
 }

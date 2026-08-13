@@ -50,9 +50,23 @@ pub fn remember(name: &str, value: &str) {
     RECOLLECTIONS.read().unwrap().remember(name, value)
 }
 
+/// Return the `String` value associated with the given `name` or
+/// `None` if `recollections` has not been initialised or
+/// asked remember data associated with the given `name`.
+pub fn recall(name: &str) -> Option<String> {
+    RECOLLECTIONS.read().unwrap().recall(name)
+}
+
+/// Return the `String` value associated with the given `name` or
+/// `default` if `recollections` has not been initialised or
+/// asked remember data associated with the given `name`.
+pub fn recall_or_else(name: &str, default: &str) -> String {
+    RECOLLECTIONS.read().unwrap().recall_or_else(name, default)
+}
+
 #[cfg(test)]
 mod recollections_tests {
-    use crate::{RECOLLECTIONS, init};
+    use crate::{RECOLLECTIONS, init, recall, recall_or_else, remember};
     use std::{fs, path};
 
     #[test]
@@ -63,5 +77,17 @@ mod recollections_tests {
         RECOLLECTIONS.write().unwrap().set_data_file_path(file_path);
         assert!(file_path.exists());
         assert!(fs::remove_file(file_path).is_ok());
+    }
+
+    #[test]
+    fn recollect_test() {
+        let recollection_file = path::Path::new("recollection_test");
+        init(recollection_file);
+        assert_eq!(recall("anything"), None);
+        assert_eq!(recall_or_else("anything", "but"), "but");
+        remember("anything", "whatever");
+        assert_eq!(recall("anything"), Some("whatever".to_string()));
+        assert_eq!(recall_or_else("anything", "but"), "whatever");
+        assert!(fs::remove_file(recollection_file).is_ok());
     }
 }
