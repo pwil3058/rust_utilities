@@ -85,6 +85,33 @@ pub fn relative_path_buf(path: impl AsRef<Path>) -> Result<PathBuf, PathExtError
     }
 }
 
+pub fn filtered_dir_entries(
+    dir_path: impl AsRef<Path>,
+) -> Result<impl Iterator<Item = DirEntry>, io::Error> {
+    let dir_path_str = dir_path.as_ref().display().to_string();
+    let read_dir = dir_path.as_ref().read_dir()?;
+    Ok(read_dir.filter_map(move |dir_entry| {
+        match dir_entry {
+            Ok(dir_entry) => Some(dir_entry),
+            Err(err) => {
+                match err.kind() {
+                    io::ErrorKind::NotFound => {
+                        // assume race condition and ignore
+                    }
+                    io::ErrorKind::PermissionDenied => {
+                        // benign so just log it in case someone cares
+                        log::info!("{dir_path_str}: Permission denied for ReadDir::next()");
+                    }
+                    _ => log::warn!(
+                        "{dir_path_str}: Unexpected error \"{err}\"  for ReadDir::next()"
+                    ),
+                };
+                None
+            }
+        }
+    }))
+}
+
 #[derive(Debug)]
 pub struct UsableDirEntry {
     dir_entry: DirEntry,
@@ -122,12 +149,12 @@ impl UsableDirEntry {
 }
 
 pub fn usable_dir_entries(
-    dir_path: &Path,
+    dir_path: impl AsRef<Path>,
 ) -> Result<impl Iterator<Item = UsableDirEntry>, io::Error> {
-    let read_dir = dir_path.read_dir()?;
-    Ok(read_dir.filter_map(|dir_entry| {
-        match dir_entry {
-            Ok(dir_entry) => match dir_entry.metadata() {
+    let dir_path_str = dir_path.as_ref().display().to_string();
+    Ok(
+        filtered_dir_entries(dir_path)?.filter_map(move |dir_entry| {
+            match dir_entry.metadata() {
                 Ok(metadata) => {
                     let file_type = metadata.file_type();
                     Some(UsableDirEntry {
@@ -138,74 +165,25 @@ pub fn usable_dir_entries(
                 Err(err) => {
                     match err.kind() {
                         io::ErrorKind::NotFound => {
-                            // We assume that "not found" is due to race condition and ignore it
+                            //   We assume that "not found" is due to race condition and ignore it
                         }
                         io::ErrorKind::PermissionDenied => {
-                            // benign so just log it in case someone cares
+                            //  benign so just log it in case someone cares
                             log::info!(
-                                "{}: {:?}: permission denied accessing metadata",
-                                dir_path.display(),
+                                "{dir_path_str}: {:?}: permission denied accessing metadata",
                                 dir_entry.path()
                             )
                         }
                         _ => log::warn!(
-                            "{}: {:?}: unexpected error \"{err}\" accessing metadata",
-                            dir_path.display(),
+                            "{dir_path_str}: {:?}: unexpected error \"{err}\" accessing metadata",
                             dir_entry.path()
                         ),
                     }
                     None
                 }
-            },
-            Err(err) => {
-                match err.kind() {
-                    io::ErrorKind::NotFound => {
-                        // assume race condition and ignore
-                    }
-                    io::ErrorKind::PermissionDenied => {
-                        // benign so just log it in case someone cares
-                        log::info!(
-                            "{}: Permission denied for ReadDir::next()",
-                            dir_path.display()
-                        );
-                    }
-                    _ => log::warn!(
-                        "{}: Unexpected error \"{err}\"  for ReadDir::next()",
-                        dir_path.display()
-                    ),
-                };
-                None
             }
-        }
-    }))
-}
-
-pub fn filtered_dir_entries(dir_path: &Path) -> Result<impl Iterator<Item = DirEntry>, io::Error> {
-    let read_dir = dir_path.read_dir()?;
-    Ok(read_dir.filter_map(|dir_entry| {
-        match dir_entry {
-            Ok(dir_entry) => Some(dir_entry),
-            Err(err) => {
-                match err.kind() {
-                    io::ErrorKind::NotFound => {
-                        // assume race condition and ignore
-                    }
-                    io::ErrorKind::PermissionDenied => {
-                        // benign so just log it in case someone cares
-                        log::info!(
-                            "{}: Permission denied for ReadDir::next()",
-                            dir_path.display()
-                        );
-                    }
-                    _ => log::warn!(
-                        "{}: Unexpected error \"{err}\"  for ReadDir::next()",
-                        dir_path.display()
-                    ),
-                };
-                None
-            }
-        }
-    }))
+        }),
+    )
 }
 
 pub trait PathExt {
