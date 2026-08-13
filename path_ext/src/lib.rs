@@ -114,8 +114,8 @@ pub fn filtered_dir_entries(
 
 #[derive(Debug)]
 pub struct UsableDirEntry {
-    dir_entry: DirEntry,
-    file_type: FileType,
+    pub dir_entry: DirEntry,
+    pub metadata: Metadata,
 }
 
 impl UsableDirEntry {
@@ -128,23 +128,19 @@ impl UsableDirEntry {
     }
 
     pub fn is_dir(&self) -> bool {
-        self.file_type.is_dir()
+        self.metadata.is_dir()
     }
 
     pub fn is_file(&self) -> bool {
-        self.file_type.is_file()
+        self.metadata.is_file()
     }
 
     pub fn is_symlink(&self) -> bool {
-        self.file_type.is_symlink()
+        self.metadata.is_symlink()
     }
 
     pub fn file_type(&self) -> FileType {
-        self.file_type
-    }
-
-    pub fn metadata(&self) -> io::Result<Metadata> {
-        self.dir_entry.metadata()
+        self.metadata.file_type()
     }
 }
 
@@ -155,13 +151,10 @@ pub fn usable_dir_entries(
     Ok(
         filtered_dir_entries(dir_path)?.filter_map(move |dir_entry| {
             match dir_entry.metadata() {
-                Ok(metadata) => {
-                    let file_type = metadata.file_type();
-                    Some(UsableDirEntry {
-                        dir_entry,
-                        file_type,
-                    })
-                }
+                Ok(metadata) => Some(UsableDirEntry {
+                    dir_entry,
+                    metadata,
+                }),
                 Err(err) => {
                     match err.kind() {
                         io::ErrorKind::NotFound => {
