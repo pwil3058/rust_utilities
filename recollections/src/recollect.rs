@@ -4,6 +4,8 @@ use std::collections::HashMap;
 use std::io::Seek;
 use std::{fs, io, path};
 
+use path_utilities::*;
+
 type RecollectionDb = HashMap<String, String>;
 
 #[derive(Debug, Default, Clone)]
@@ -13,6 +15,9 @@ pub struct Recollections {
 
 impl Recollections {
     pub fn set_data_file_path(&mut self, file_path: &path::Path) {
+        let file_path = file_path
+            .absolute_path_buf()
+            .expect("failed to get absolute path");
         if !file_path.exists() {
             if let Some(dir_path) = file_path.parent()
                 && !dir_path.exists()
@@ -21,15 +26,23 @@ impl Recollections {
                     .expect("Could not create recollections data directory");
             }
             let mut file =
-                fs::File::create(file_path).expect("Could not create recollections data file");
+                fs::File::create(&file_path).expect("Could not create recollections data file");
             serde_json::to_writer(&mut file, &RecollectionDb::new())
                 .expect("Could not write recollections data file");
         };
-        self.file_path = Some(file_path.to_path_buf())
+        self.file_path = Some(file_path)
     }
 
     pub fn remember(&self, name: &str, value: &str) {
         if let Some(ref file_path) = self.file_path {
+            debug_assert!(
+                file_path.exists(),
+                "{}",
+                format!(
+                    "Recollections file {:?} seems to have gone away",
+                    file_path.display()
+                )
+            );
             let mut file = fs::OpenOptions::new()
                 .read(true)
                 .write(true)

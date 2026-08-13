@@ -134,6 +134,7 @@ dependencies = [
  "dirs",
  "lazy_static",
  "mut_static",
+ "path_utilities",
  "serde_json",
 ]
 
