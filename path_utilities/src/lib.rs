@@ -179,14 +179,14 @@ pub fn usable_dir_entries(
     )
 }
 
-pub trait PathExt {
+pub trait UsefulPathMethods {
     fn absolute_path_buf(&self) -> Result<PathBuf, PathExtError>;
     fn relative_path_buf(&self) -> Result<PathBuf, PathExtError>;
     fn usable_dir_entries(&self) -> Result<impl Iterator<Item = UsableDirEntry>, io::Error>;
     fn filtered_dir_entries(&self) -> Result<impl Iterator<Item = DirEntry>, io::Error>;
 }
 
-impl PathExt for Path {
+impl UsefulPathMethods for Path {
     fn absolute_path_buf(&self) -> Result<PathBuf, PathExtError> {
         absolute_path_buf(self)
     }
@@ -204,7 +204,7 @@ impl PathExt for Path {
     }
 }
 
-impl PathExt for PathBuf {
+impl UsefulPathMethods for PathBuf {
     fn absolute_path_buf(&self) -> Result<PathBuf, PathExtError> {
         absolute_path_buf(self)
     }
