@@ -1,0 +1,52 @@
+// Copyright (c) 2026 Peter Williams <pwil3058@bigpond.net.au> <pwil3058@gmail.com>.
+
+use std::collections::HashMap;
+use std::io::Seek;
+use std::{fs, io, path};
+
+type RecollectionDb = HashMap<String, String>;
+
+#[derive(Debug, Default, Clone)]
+pub struct Recollections {
+    pub file_path: Option<path::PathBuf>,
+}
+
+impl Recollections {
+    pub fn set_data_file_path(&mut self, file_path: &path::Path) {
+        if !file_path.exists() {
+            if let Some(dir_path) = file_path.parent()
+                && !dir_path.exists()
+            {
+                fs::create_dir_all(dir_path)
+                    .expect("Could not create recollections data directory");
+            }
+            let mut file =
+                fs::File::create(file_path).expect("Could not create recollections data file");
+            serde_json::to_writer(&mut file, &RecollectionDb::new())
+                .expect("Could not write recollections data file");
+        };
+        self.file_path = Some(file_path.to_path_buf())
+    }
+
+    pub fn remember(&self, name: &str, value: &str) {
+        if let Some(ref file_path) = self.file_path {
+            let mut file = fs::OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(file_path)
+                .expect("Could not open recollections data file");
+            file.lock().expect("Could not lock recollections data file");
+            let mut hash_map: RecollectionDb =
+                serde_json::from_reader(&file).expect("Could not read recollections data file");
+            hash_map.insert(name.to_string(), value.to_string());
+            file.seek(io::SeekFrom::Start(0))
+                .expect("Could not seek recollections data file");
+            file.set_len(0)
+                .expect("Could not seek recollections data file");
+            serde_json::to_writer(&mut file, &hash_map)
+                .expect("Could not write recollections data file");
+            file.unlock()
+                .expect("Could not unlock recollections data file");
+        }
+    }
+}

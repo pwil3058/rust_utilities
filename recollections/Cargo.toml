@@ -1,0 +1,11 @@
+[package]
+name = "recollections"
+version = "0.1.0"
+edition = "2024"
+authors = ["Peter Williams <pwil3058@bigpond.net.au> <pwil3058@gmail.com>"]
+
+[dependencies]
+lazy_static = "1.5.0"
+mut_static = "5"
+serde_json = "1.0.151"
+dirs = "6"
