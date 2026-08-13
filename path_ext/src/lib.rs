@@ -143,12 +143,14 @@ pub fn usable_dir_entries(
                         io::ErrorKind::PermissionDenied => {
                             // benign so just log it in case someone cares
                             log::info!(
-                                "{:?}: permission denied accessing metadata",
+                                "{}: {:?}: permission denied accessing metadata",
+                                dir_path.display(),
                                 dir_entry.path()
                             )
                         }
                         _ => log::warn!(
-                            "{:?}: unexpected error \"{err}\" accessing metadata",
+                            "{}: {:?}: unexpected error \"{err}\" accessing metadata",
+                            dir_path.display(),
                             dir_entry.path()
                         ),
                     }
@@ -162,9 +164,15 @@ pub fn usable_dir_entries(
                     }
                     io::ErrorKind::PermissionDenied => {
                         // benign so just log it in case someone cares
-                        log::info!("Permission denied for ReadDir::next()");
+                        log::info!(
+                            "{}: Permission denied for ReadDir::next()",
+                            dir_path.display()
+                        );
                     }
-                    _ => log::warn!("Unexpected error \"{err}\"  for ReadDir::next()"),
+                    _ => log::warn!(
+                        "{}: Unexpected error \"{err}\"  for ReadDir::next()",
+                        dir_path.display()
+                    ),
                 };
                 None
             }
@@ -184,9 +192,15 @@ pub fn filtered_dir_entries(dir_path: &Path) -> Result<impl Iterator<Item = DirE
                     }
                     io::ErrorKind::PermissionDenied => {
                         // benign so just log it in case someone cares
-                        log::info!("Permission denied for ReadDir::next()");
+                        log::info!(
+                            "{}: Permission denied for ReadDir::next()",
+                            dir_path.display()
+                        );
                     }
-                    _ => log::warn!("Unexpected error \"{err}\"  for ReadDir::next()"),
+                    _ => log::warn!(
+                        "{}: Unexpected error \"{err}\"  for ReadDir::next()",
+                        dir_path.display()
+                    ),
                 };
                 None
             }
