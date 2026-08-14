@@ -6,6 +6,8 @@ use std::{fs, io, path};
 
 use path_utilities::*;
 
+use crate::RecollectError;
+
 type RecollectionDb = HashMap<String, String>;
 
 #[derive(Debug, Default, Clone)]
@@ -14,24 +16,22 @@ pub struct Recollections {
 }
 
 impl Recollections {
-    pub fn set_data_file_path(&mut self, file_path: impl AsRef<path::Path>) {
-        let file_path = file_path
-            .as_ref()
-            .absolute_path_buf()
-            .expect("failed to get absolute path");
+    pub fn set_data_file_path(
+        &mut self,
+        file_path: impl AsRef<path::Path>,
+    ) -> Result<(), RecollectError> {
+        let file_path = file_path.as_ref().absolute_path_buf()?;
         if !file_path.exists() {
             if let Some(dir_path) = file_path.parent()
                 && !dir_path.exists()
             {
-                fs::create_dir_all(dir_path)
-                    .expect("Could not create recollections data directory");
+                fs::create_dir_all(dir_path)?;
             }
-            let mut file =
-                fs::File::create(&file_path).expect("Could not create recollections data file");
-            serde_json::to_writer(&mut file, &RecollectionDb::new())
-                .expect("Could not write recollections data file");
+            let mut file = fs::File::create(&file_path)?;
+            serde_json::to_writer(&mut file, &RecollectionDb::new())?;
         };
-        self.file_path = Some(file_path)
+        self.file_path = Some(file_path);
+        Ok(())
     }
 
     pub fn remember(&self, name: &str, value: &str) {

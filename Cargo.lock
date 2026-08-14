@@ -136,6 +136,7 @@ dependencies = [
  "mut_static",
  "path_utilities",
  "serde_json",
+ "thiserror",
 ]
 
 [[package]]

@@ -9,12 +9,23 @@ mod recollect;
 use std::path;
 
 use lazy_static::lazy_static;
-use mut_static::*;
+use mut_static::MutStatic;
+use thiserror::Error;
 
 use recollect::*;
 
 lazy_static! {
     static ref RECOLLECTIONS: MutStatic<Recollections> = MutStatic::from(Recollections::default());
+}
+
+#[derive(Error, Debug)]
+pub enum RecollectError {
+    #[error("I/O error: {0}")]
+    IoError(#[from] std::io::Error),
+    #[error("File path error: {0}")]
+    FilePathError(#[from] path_utilities::PathExtError),
+    #[error("JSON error: {0}")]
+    SerdeError(#[from] serde_json::Error),
 }
 
 /// Initialise the mechanism by providing the path of the file
@@ -31,7 +42,7 @@ lazy_static! {
 ///     use recollections;
 ///
 ///     let home_dir = dirs::home_dir().expect("badly designed OS");
-///     recollections::init(&home_dir.join(".this_apps_recollections"));
+///     recollections::init(&home_dir.join(".this_apps_recollections")).unwrap();
 /// }
 /// ```
 ///
@@ -39,9 +50,13 @@ lazy_static! {
 /// will return `None`, calls to `recall_or_else()` will return the
 /// default supplied and calls to `remember()` will be ignored.
 /// The operation of the application will not be effected otherwise.
-pub fn init<P: AsRef<path::Path>>(file_path: P) {
+pub fn init<P: AsRef<path::Path>>(file_path: P) -> Result<(), RecollectError> {
     let file_path: &path::Path = file_path.as_ref();
-    RECOLLECTIONS.write().unwrap().set_data_file_path(file_path);
+    RECOLLECTIONS
+        .write()
+        .unwrap()
+        .set_data_file_path(file_path)?;
+    Ok(())
 }
 
 /// Remember the string specified by `value` and associate it with
@@ -72,9 +87,13 @@ mod recollections_tests {
     #[test]
     fn test_init() {
         let file_path = path::Path::new("testing/testing");
-        init(file_path);
+        init(file_path).unwrap();
         assert!(file_path.exists());
-        RECOLLECTIONS.write().unwrap().set_data_file_path(file_path);
+        RECOLLECTIONS
+            .write()
+            .unwrap()
+            .set_data_file_path(file_path)
+            .unwrap();
         assert!(file_path.exists());
         assert!(fs::remove_file(file_path).is_ok());
     }
@@ -82,7 +101,7 @@ mod recollections_tests {
     #[test]
     fn recollect_test() {
         let recollection_file = path::Path::new("recollection_test");
-        init(recollection_file);
+        init(recollection_file).unwrap();
         assert_eq!(recall("anything"), None);
         assert_eq!(recall_or_else("anything", "but"), "but");
         remember("anything", "whatever");
