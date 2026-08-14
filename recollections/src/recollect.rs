@@ -1,18 +1,19 @@
 // Copyright (c) 2026 Peter Williams <pwil3058@bigpond.net.au> <pwil3058@gmail.com>.
 
-use std::collections::HashMap;
-use std::io::Seek;
-use std::{fs, io, path};
-
+use parking_lot::RwLock;
 use path_utilities::*;
+use std::collections::HashMap;
+use std::ops::Deref;
+use std::{fs, path};
 
 use crate::RecollectError;
 
 type RecollectionDb = HashMap<String, String>;
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default)]
 pub struct Recollections {
     pub file_path: Option<path::PathBuf>,
+    data: RwLock<RecollectionDb>,
 }
 
 impl Recollections {
@@ -30,11 +31,21 @@ impl Recollections {
             let mut file = fs::File::create(&file_path)?;
             serde_json::to_writer(&mut file, &RecollectionDb::new())?;
         };
+        let file = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&file_path)?;
+        file.lock()?;
+        let hash_map: RecollectionDb = serde_json::from_reader(&file)?;
         self.file_path = Some(file_path);
+        self.data = RwLock::new(hash_map);
+        file.unlock()?;
         Ok(())
     }
 
     pub fn remember(&self, name: &str, value: &str) {
+        let mut guard = self.data.write();
+        guard.insert(name.to_string(), value.to_string());
         if let Some(ref file_path) = self.file_path {
             debug_assert!(
                 file_path.exists(),
@@ -50,14 +61,7 @@ impl Recollections {
                 .open(file_path)
                 .expect("Could not open recollections data file");
             file.lock().expect("Could not lock recollections data file");
-            let mut hash_map: RecollectionDb =
-                serde_json::from_reader(&file).expect("Could not read recollections data file");
-            hash_map.insert(name.to_string(), value.to_string());
-            file.seek(io::SeekFrom::Start(0))
-                .expect("Could not seek recollections data file");
-            file.set_len(0)
-                .expect("Could not seek recollections data file");
-            serde_json::to_writer(&mut file, &hash_map)
+            serde_json::to_writer(&mut file, guard.deref())
                 .expect("Could not write recollections data file");
             file.unlock()
                 .expect("Could not unlock recollections data file");
@@ -65,18 +69,8 @@ impl Recollections {
     }
 
     pub fn recall(&self, name: &str) -> Option<String> {
-        if let Some(ref file_path) = self.file_path {
-            let file = fs::File::open(file_path).expect("Could not open recollections data file");
-            file.lock_shared()
-                .expect("Could not lock recollections data file");
-            let hash_map: RecollectionDb =
-                serde_json::from_reader(&file).expect("Could not read recollections data file");
-            file.unlock()
-                .expect("Could not unlock recollections data file");
-            hash_map.get(name).map(|s| s.to_string())
-        } else {
-            None
-        }
+        let guard = self.data.read();
+        guard.get(name).map(|s| s.to_string())
     }
 
     pub fn recall_or_else(&self, name: &str, default: &str) -> String {
