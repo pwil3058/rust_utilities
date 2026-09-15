@@ -13,8 +13,12 @@ pub enum PathExtError {
     CurrDirNotFound(#[from] std::io::Error),
     #[error("Home directory not found")]
     HomeDirNotFound,
+    #[error("Could not find current directory's parent.")]
+    ParentDirNotFound,
     #[error("Failed to strip path prefix")]
     StripPrefixError(#[from] path::StripPrefixError),
+    #[error("Unexpected prefix for this operation.")]
+    UnexpectedPrefix,
 }
 
 #[cfg(test)]
@@ -23,44 +27,109 @@ impl PartialEq for PathExtError {
         match self {
             Self::CurrDirNotFound(_) => matches!(other, Self::CurrDirNotFound(_)),
             Self::HomeDirNotFound => matches!(other, Self::HomeDirNotFound),
+            Self::ParentDirNotFound => matches!(other, Self::ParentDirNotFound),
             Self::StripPrefixError(_) => matches!(other, Self::StripPrefixError(_)),
+            Self::UnexpectedPrefix => matches!(other, Self::UnexpectedPrefix),
         }
     }
 }
 
-pub fn absolute_path_buf(path: impl AsRef<Path>) -> Result<PathBuf, PathExtError> {
-    if path.as_ref().is_absolute() {
-        Ok(path.as_ref().to_path_buf())
-    } else if path.as_ref().starts_with("~/") {
-        let home_dir_path = dirs::home_dir().ok_or(PathExtError::HomeDirNotFound)?;
-        let tail = path.as_ref().strip_prefix("~/")?;
-        Ok(home_dir_path.join(tail))
-    } else {
-        let mut current_dir = env::current_dir()?;
-        let mut components = path.as_ref().components();
-        if let Some(mut first_component) = components.next() {
-            match first_component {
-                Component::Prefix(_) | Component::RootDir => {
-                    unreachable!()
-                }
-                Component::ParentDir => {
-                    while first_component == Component::ParentDir {
-                        debug_assert!(current_dir.pop());
-                        if let Some(component) = components.next() {
-                            first_component = component;
-                        } else {
-                            break;
-                        }
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum PathType {
+    Absolute,
+    RelativeCurDir,
+    RelativeCurDirImplicit,
+    RelativeParentDirs,
+    RelativeHomeDir,
+    Empty,
+}
+
+impl PathType {
+    pub fn of<P: AsRef<Path>>(path_arg: P) -> Self {
+        let path = path_arg.as_ref();
+        match path.components().next() {
+            None => PathType::Empty,
+            Some(component) => match component {
+                Component::RootDir | Component::Prefix(_) => PathType::Absolute,
+                Component::CurDir => PathType::RelativeCurDir,
+                Component::ParentDir => PathType::RelativeParentDirs,
+                Component::Normal(os_string) => {
+                    if os_string == "~" {
+                        PathType::RelativeHomeDir
+                    } else {
+                        PathType::RelativeCurDirImplicit
                     }
-                    current_dir.push(first_component);
-                    Ok(current_dir.join(components.as_path()))
                 }
-                Component::CurDir => Ok(current_dir.join(components.as_path())),
-                Component::Normal(_) => Ok(current_dir.join(path.as_ref())),
-            }
-        } else {
-            Ok(current_dir.to_path_buf())
+            },
         }
+    }
+}
+
+pub fn expand_current_dir<P: AsRef<Path>>(path_arg: P) -> Result<PathBuf, PathExtError> {
+    let path = path_arg.as_ref();
+    if path.starts_with(Component::CurDir) {
+        let cur_dir = env::current_dir()?;
+        let path_tail = path.strip_prefix(Component::CurDir)?;
+        Ok(cur_dir.join(path_tail))
+    } else {
+        Err(PathExtError::UnexpectedPrefix)
+    }
+}
+
+pub fn expand_parent_dirs<P: AsRef<Path>>(path_arg: P) -> Result<PathBuf, PathExtError> {
+    let mut path_tail = path_arg.as_ref();
+    let mut parent_dir = env::current_dir()?;
+    while path_tail.starts_with(Component::ParentDir) {
+        parent_dir = match parent_dir.parent() {
+            Some(parent_dir) => parent_dir.to_path_buf(),
+            None => return Err(PathExtError::ParentDirNotFound),
+        };
+        path_tail = path_tail.strip_prefix(Component::ParentDir)?;
+    }
+    Ok(parent_dir.join(path_tail))
+}
+
+pub fn expand_home_dir<P: AsRef<Path>>(path_arg: P) -> Result<PathBuf, PathExtError> {
+    let path = path_arg.as_ref();
+    if path.starts_with("~") {
+        let home_dir = match dirs::home_dir() {
+            Some(home_dir) => home_dir,
+            None => return Err(PathExtError::HomeDirNotFound),
+        };
+        let path_tail = path.strip_prefix("~")?;
+        Ok(home_dir.join(path_tail))
+    } else {
+        Err(PathExtError::UnexpectedPrefix)
+    }
+}
+
+pub fn prepend_current_dir<P: AsRef<Path>>(path_arg: P) -> Result<PathBuf, PathExtError> {
+    let path = path_arg.as_ref();
+    match path.components().next() {
+        None => Ok(env::current_dir()?),
+        Some(component) => match component {
+            Component::Normal(os_string) => {
+                if os_string == "~" {
+                    Err(PathExtError::UnexpectedPrefix)
+                } else {
+                    let cur_dir = env::current_dir()?;
+                    Ok(cur_dir.join(path))
+                }
+            }
+            _ => Err(PathExtError::UnexpectedPrefix),
+        },
+    }
+}
+
+pub fn absolute_path_buf(path: impl AsRef<Path>) -> Result<PathBuf, PathExtError> {
+    let path = path.as_ref();
+    match PathType::of(path) {
+        PathType::Absolute => Ok(path.to_path_buf()),
+        PathType::RelativeCurDir => expand_current_dir(path),
+        PathType::RelativeParentDirs => expand_parent_dirs(path),
+        PathType::RelativeHomeDir => expand_home_dir(path),
+        PathType::RelativeCurDirImplicit => prepend_current_dir(path),
+        PathType::Empty => Ok(env::current_dir()?),
     }
 }
 
