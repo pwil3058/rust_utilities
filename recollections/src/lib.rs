@@ -101,6 +101,7 @@ mod recollections_tests {
     #[test]
     fn recollect_test() {
         let recollection_file = path::Path::new("recollection_test");
+        let _ = fs::remove_file(recollection_file);
         init(recollection_file).unwrap();
         assert_eq!(recall("anything"), None);
         assert_eq!(recall_or_else("anything", "but"), "but");

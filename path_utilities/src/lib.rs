@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Peter Williams <pwil3058@bigpond.net.au> <pwil3058@gmail.com>.
 
 use std::ffi::OsString;
-use std::fs::{DirEntry, FileType, Metadata};
+use std::fs::{DirEntry, FileType, Metadata, ReadDir};
 use std::path::{self, Component, Path, PathBuf};
 use std::{env, io};
 
@@ -85,31 +85,57 @@ pub fn relative_path_buf(path: impl AsRef<Path>) -> Result<PathBuf, PathExtError
     }
 }
 
-pub fn filtered_dir_entries(
-    dir_path: impl AsRef<Path>,
-) -> Result<impl Iterator<Item = DirEntry>, io::Error> {
-    let dir_path_str = dir_path.as_ref().display().to_string();
-    let read_dir = dir_path.as_ref().read_dir()?;
-    Ok(read_dir.filter_map(move |dir_entry| {
-        match dir_entry {
-            Ok(dir_entry) => Some(dir_entry),
-            Err(err) => {
-                match err.kind() {
-                    io::ErrorKind::NotFound => {
-                        // assume race condition and ignore
-                    }
-                    io::ErrorKind::PermissionDenied => {
-                        // benign so just log it in case someone cares
-                        log::info!("{dir_path_str}: Permission denied for ReadDir::next()");
-                    }
-                    _ => log::warn!(
-                        "{dir_path_str}: Unexpected error \"{err}\"  for ReadDir::next()"
-                    ),
-                };
-                None
+pub fn relative_path_buf_or_mine(path: impl AsRef<Path>) -> PathBuf {
+    let path = path.as_ref();
+    relative_path_buf(path).unwrap_or(path.to_path_buf())
+}
+
+pub fn path_to_string(path: impl AsRef<Path>) -> String {
+    let path = path.as_ref();
+    if let Some(path_str) = path.to_str() {
+        path_str.to_string()
+    } else {
+        let string = path.to_string_lossy();
+        log::warn!("Non UniCode file path: {string}");
+        string.to_string()
+    }
+}
+
+pub struct FilteredDirEntries(ReadDir, String);
+
+impl Iterator for FilteredDirEntries {
+    type Item = DirEntry;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if let Some(result) = self.0.next() {
+                match result {
+                    Ok(entry) => return Some(entry),
+                    Err(err) => match err.kind() {
+                        io::ErrorKind::NotFound => {
+                            // Assume race condition amd ignore
+                        }
+                        io::ErrorKind::PermissionDenied => {
+                            // benign so just log it in case someone cares
+                            log::info!("{}: Permission denied for ReadDir::next()", self.1);
+                        }
+                        _ => log::warn!(
+                            "{}: Unexpected error \"{err}\"  for ReadDir::next()",
+                            self.1
+                        ),
+                    },
+                }
+            } else {
+                return None;
             }
         }
-    }))
+    }
+}
+
+pub fn filtered_dir_entries(dir_path: impl AsRef<Path>) -> Result<FilteredDirEntries, io::Error> {
+    let dir_path_str = dir_path.as_ref().display().to_string();
+    let read_dir = dir_path.as_ref().read_dir()?;
+    Ok(FilteredDirEntries(read_dir, dir_path_str))
 }
 
 #[derive(Debug)]
@@ -144,46 +170,56 @@ impl UsableDirEntry {
     }
 }
 
-pub fn usable_dir_entries(
-    dir_path: impl AsRef<Path>,
-) -> Result<impl Iterator<Item = UsableDirEntry>, io::Error> {
-    let dir_path_str = dir_path.as_ref().display().to_string();
-    Ok(
-        filtered_dir_entries(dir_path)?.filter_map(move |dir_entry| {
-            match dir_entry.metadata() {
-                Ok(metadata) => Some(UsableDirEntry {
-                    dir_entry,
-                    metadata,
-                }),
-                Err(err) => {
-                    match err.kind() {
+pub struct UsableDirEntries(FilteredDirEntries);
+
+impl Iterator for UsableDirEntries {
+    type Item = UsableDirEntry;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if let Some(dir_entry) = self.0.next() {
+                match dir_entry.metadata() {
+                    Ok(metadata) => {
+                        return Some(UsableDirEntry {
+                            dir_entry,
+                            metadata,
+                        });
+                    }
+                    Err(err) => match err.kind() {
                         io::ErrorKind::NotFound => {
                             //   We assume that "not found" is due to race condition and ignore it
                         }
                         io::ErrorKind::PermissionDenied => {
                             //  benign so just log it in case someone cares
                             log::info!(
-                                "{dir_path_str}: {:?}: permission denied accessing metadata",
+                                "{}: {:?}: permission denied accessing metadata",
+                                self.0.1,
                                 dir_entry.path()
                             )
                         }
                         _ => log::warn!(
-                            "{dir_path_str}: {:?}: unexpected error \"{err}\" accessing metadata",
+                            "{}: {:?}: unexpected error \"{err}\" accessing metadata",
+                            self.0.1,
                             dir_entry.path()
                         ),
-                    }
-                    None
+                    },
                 }
+            } else {
+                return None;
             }
-        }),
-    )
+        }
+    }
+}
+
+pub fn usable_dir_entries(dir_path: impl AsRef<Path>) -> Result<UsableDirEntries, io::Error> {
+    Ok(UsableDirEntries(filtered_dir_entries(dir_path)?))
 }
 
 pub trait UsefulPathMethods {
     fn absolute_path_buf(&self) -> Result<PathBuf, PathExtError>;
     fn relative_path_buf(&self) -> Result<PathBuf, PathExtError>;
-    fn usable_dir_entries(&self) -> Result<impl Iterator<Item = UsableDirEntry>, io::Error>;
-    fn filtered_dir_entries(&self) -> Result<impl Iterator<Item = DirEntry>, io::Error>;
+    fn usable_dir_entries(&self) -> Result<UsableDirEntries, io::Error>;
+    fn filtered_dir_entries(&self) -> Result<FilteredDirEntries, io::Error>;
 }
 
 impl UsefulPathMethods for Path {
@@ -195,11 +231,11 @@ impl UsefulPathMethods for Path {
         relative_path_buf(self)
     }
 
-    fn usable_dir_entries(&self) -> Result<impl Iterator<Item = UsableDirEntry>, io::Error> {
+    fn usable_dir_entries(&self) -> Result<UsableDirEntries, io::Error> {
         usable_dir_entries(self)
     }
 
-    fn filtered_dir_entries(&self) -> Result<impl Iterator<Item = DirEntry>, io::Error> {
+    fn filtered_dir_entries(&self) -> Result<FilteredDirEntries, io::Error> {
         filtered_dir_entries(self)
     }
 }
@@ -213,11 +249,11 @@ impl UsefulPathMethods for PathBuf {
         relative_path_buf(self)
     }
 
-    fn usable_dir_entries(&self) -> Result<impl Iterator<Item = UsableDirEntry>, io::Error> {
+    fn usable_dir_entries(&self) -> Result<UsableDirEntries, io::Error> {
         usable_dir_entries(self)
     }
 
-    fn filtered_dir_entries(&self) -> Result<impl Iterator<Item = DirEntry>, io::Error> {
+    fn filtered_dir_entries(&self) -> Result<FilteredDirEntries, io::Error> {
         filtered_dir_entries(self)
     }
 }
