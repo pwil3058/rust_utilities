@@ -8,7 +8,7 @@ use std::{env, io};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum PathExtError {
+pub enum Error {
     #[error("Current directory not found")]
     CurrDirNotFound(#[from] std::io::Error),
     #[error("Home directory not found")]
@@ -22,7 +22,7 @@ pub enum PathExtError {
 }
 
 #[cfg(test)]
-impl PartialEq for PathExtError {
+impl PartialEq for Error {
     fn eq(&self, other: &Self) -> bool {
         match self {
             Self::CurrDirNotFound(_) => matches!(other, Self::CurrDirNotFound(_)),
@@ -65,63 +65,63 @@ impl PathType {
     }
 }
 
-pub fn expand_current_dir<P: AsRef<Path>>(path_arg: P) -> Result<PathBuf, PathExtError> {
+pub fn expand_current_dir<P: AsRef<Path>>(path_arg: P) -> Result<PathBuf, Error> {
     let path = path_arg.as_ref();
     if path.starts_with(Component::CurDir) {
         let cur_dir = env::current_dir()?;
         let path_tail = path.strip_prefix(Component::CurDir)?;
         Ok(cur_dir.join(path_tail))
     } else {
-        Err(PathExtError::UnexpectedPrefix)
+        Err(Error::UnexpectedPrefix)
     }
 }
 
-pub fn expand_parent_dirs<P: AsRef<Path>>(path_arg: P) -> Result<PathBuf, PathExtError> {
+pub fn expand_parent_dirs<P: AsRef<Path>>(path_arg: P) -> Result<PathBuf, Error> {
     let mut path_tail = path_arg.as_ref();
     let mut parent_dir = env::current_dir()?;
     while path_tail.starts_with(Component::ParentDir) {
         parent_dir = match parent_dir.parent() {
             Some(parent_dir) => parent_dir.to_path_buf(),
-            None => return Err(PathExtError::ParentDirNotFound),
+            None => return Err(Error::ParentDirNotFound),
         };
         path_tail = path_tail.strip_prefix(Component::ParentDir)?;
     }
     Ok(parent_dir.join(path_tail))
 }
 
-pub fn expand_home_dir<P: AsRef<Path>>(path_arg: P) -> Result<PathBuf, PathExtError> {
+pub fn expand_home_dir<P: AsRef<Path>>(path_arg: P) -> Result<PathBuf, Error> {
     let path = path_arg.as_ref();
     if path.starts_with("~") {
         let home_dir = match dirs::home_dir() {
             Some(home_dir) => home_dir,
-            None => return Err(PathExtError::HomeDirNotFound),
+            None => return Err(Error::HomeDirNotFound),
         };
         let path_tail = path.strip_prefix("~")?;
         Ok(home_dir.join(path_tail))
     } else {
-        Err(PathExtError::UnexpectedPrefix)
+        Err(Error::UnexpectedPrefix)
     }
 }
 
-pub fn prepend_current_dir<P: AsRef<Path>>(path_arg: P) -> Result<PathBuf, PathExtError> {
+pub fn prepend_current_dir<P: AsRef<Path>>(path_arg: P) -> Result<PathBuf, Error> {
     let path = path_arg.as_ref();
     match path.components().next() {
         None => Ok(env::current_dir()?),
         Some(component) => match component {
             Component::Normal(os_string) => {
                 if os_string == "~" {
-                    Err(PathExtError::UnexpectedPrefix)
+                    Err(Error::UnexpectedPrefix)
                 } else {
                     let cur_dir = env::current_dir()?;
                     Ok(cur_dir.join(path))
                 }
             }
-            _ => Err(PathExtError::UnexpectedPrefix),
+            _ => Err(Error::UnexpectedPrefix),
         },
     }
 }
 
-pub fn absolute_path_buf(path: impl AsRef<Path>) -> Result<PathBuf, PathExtError> {
+pub fn absolute_path_buf(path: impl AsRef<Path>) -> Result<PathBuf, Error> {
     let path = path.as_ref();
     match PathType::of(path) {
         PathType::Absolute => Ok(path.to_path_buf()),
@@ -133,7 +133,7 @@ pub fn absolute_path_buf(path: impl AsRef<Path>) -> Result<PathBuf, PathExtError
     }
 }
 
-pub fn relative_path_buf(path: impl AsRef<Path>) -> Result<PathBuf, PathExtError> {
+pub fn relative_path_buf(path: impl AsRef<Path>) -> Result<PathBuf, Error> {
     let absolute_path = absolute_path_buf(&path)?;
     let mut cur_dir = env::current_dir()?;
     if absolute_path.starts_with(&cur_dir) {
@@ -285,18 +285,18 @@ pub fn usable_dir_entries(dir_path: impl AsRef<Path>) -> Result<UsableDirEntries
 }
 
 pub trait UsefulPathMethods {
-    fn absolute_path_buf(&self) -> Result<PathBuf, PathExtError>;
-    fn relative_path_buf(&self) -> Result<PathBuf, PathExtError>;
+    fn absolute_path_buf(&self) -> Result<PathBuf, Error>;
+    fn relative_path_buf(&self) -> Result<PathBuf, Error>;
     fn usable_dir_entries(&self) -> Result<UsableDirEntries, io::Error>;
     fn filtered_dir_entries(&self) -> Result<FilteredDirEntries, io::Error>;
 }
 
 impl UsefulPathMethods for Path {
-    fn absolute_path_buf(&self) -> Result<PathBuf, PathExtError> {
+    fn absolute_path_buf(&self) -> Result<PathBuf, Error> {
         absolute_path_buf(self)
     }
 
-    fn relative_path_buf(&self) -> Result<PathBuf, PathExtError> {
+    fn relative_path_buf(&self) -> Result<PathBuf, Error> {
         relative_path_buf(self)
     }
 
@@ -310,11 +310,11 @@ impl UsefulPathMethods for Path {
 }
 
 impl UsefulPathMethods for PathBuf {
-    fn absolute_path_buf(&self) -> Result<PathBuf, PathExtError> {
+    fn absolute_path_buf(&self) -> Result<PathBuf, Error> {
         absolute_path_buf(self)
     }
 
-    fn relative_path_buf(&self) -> Result<PathBuf, PathExtError> {
+    fn relative_path_buf(&self) -> Result<PathBuf, Error> {
         relative_path_buf(self)
     }
 

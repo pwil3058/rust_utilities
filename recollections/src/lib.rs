@@ -23,7 +23,7 @@ pub enum RecollectError {
     #[error("I/O error: {0}")]
     IoError(#[from] std::io::Error),
     #[error("File path error: {0}")]
-    FilePathError(#[from] path_utilities::PathExtError),
+    FilePathError(#[from] path_utilities::Error),
     #[error("JSON error: {0}")]
     SerdeError(#[from] serde_json::Error),
 }
