@@ -103,6 +103,11 @@ pub fn expand_home_dir<P: AsRef<Path>>(path_arg: P) -> Result<PathBuf, Error> {
     }
 }
 
+pub fn expand_home_dir_or_mine<P: AsRef<Path>>(path: P) -> PathBuf {
+    let path = path.as_ref();
+    expand_home_dir(path).unwrap_or(path.to_path_buf())
+}
+
 pub fn prepend_current_dir<P: AsRef<Path>>(path_arg: P) -> Result<PathBuf, Error> {
     let path = path_arg.as_ref();
     match path.components().next() {
