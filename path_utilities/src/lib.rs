@@ -34,6 +34,27 @@ impl PartialEq for Error {
     }
 }
 
+pub trait ComponentIs {
+    fn is_prefix(&self) -> bool;
+    fn is_normal(&self) -> bool;
+}
+
+impl<'a> ComponentIs for Component<'a> {
+    fn is_prefix(&self) -> bool {
+        match self {
+            Component::Prefix(_) => true,
+            _ => false,
+        }
+    }
+
+    fn is_normal(&self) -> bool {
+        match self {
+            Component::Normal(_) => true,
+            _ => false,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum PathType {
     Absolute,
