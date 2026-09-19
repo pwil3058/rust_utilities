@@ -58,6 +58,7 @@ impl Recollections {
             let mut file = fs::OpenOptions::new()
                 .read(true)
                 .write(true)
+                .truncate(true)
                 .open(file_path)
                 .expect("Could not open recollections data file");
             file.lock().expect("Could not lock recollections data file");
