@@ -7,16 +7,13 @@
 mod recollect;
 
 use std::path;
+use std::sync::{Mutex, OnceLock};
 
-use lazy_static::lazy_static;
-use mut_static::MutStatic;
 use thiserror::Error;
 
 use recollect::*;
 
-lazy_static! {
-    static ref RECOLLECTIONS: MutStatic<Recollections> = MutStatic::from(Recollections::default());
-}
+static RECOLLECTIONS: OnceLock<Mutex<Recollections>> = OnceLock::new();
 
 #[derive(Error, Debug)]
 pub enum RecollectError {
@@ -53,7 +50,8 @@ pub enum RecollectError {
 pub fn init<P: AsRef<path::Path>>(file_path: P) -> Result<(), RecollectError> {
     let file_path: &path::Path = file_path.as_ref();
     RECOLLECTIONS
-        .write()
+        .get_or_init(|| Mutex::new(Recollections::default()))
+        .lock()
         .unwrap()
         .set_data_file_path(file_path)?;
     Ok(())
@@ -62,21 +60,31 @@ pub fn init<P: AsRef<path::Path>>(file_path: P) -> Result<(), RecollectError> {
 /// Remember the string specified by `value` and associate it with
 /// the given `name` for later recall.
 pub fn remember(name: &str, value: &str) {
-    RECOLLECTIONS.read().unwrap().remember(name, value)
+    RECOLLECTIONS
+        .get()
+        .unwrap()
+        .lock()
+        .unwrap()
+        .remember(name, value)
 }
 
 /// Return the `String` value associated with the given `name` or
 /// `None` if `recollections` has not been initialised or
 /// asked remember data associated with the given `name`.
 pub fn recall(name: &str) -> Option<String> {
-    RECOLLECTIONS.read().unwrap().recall(name)
+    RECOLLECTIONS.get().unwrap().lock().unwrap().recall(name)
 }
 
 /// Return the `String` value associated with the given `name` or
 /// `default` if `recollections` has not been initialised or
 /// asked remember data associated with the given `name`.
 pub fn recall_or_else(name: &str, default: &str) -> String {
-    RECOLLECTIONS.read().unwrap().recall_or_else(name, default)
+    RECOLLECTIONS
+        .get()
+        .unwrap()
+        .lock()
+        .unwrap()
+        .recall_or_else(name, default)
 }
 
 #[cfg(test)]
@@ -90,7 +98,9 @@ mod recollections_tests {
         init(file_path).unwrap();
         assert!(file_path.exists());
         RECOLLECTIONS
-            .write()
+            .get()
+            .unwrap()
+            .lock()
             .unwrap()
             .set_data_file_path(file_path)
             .unwrap();
