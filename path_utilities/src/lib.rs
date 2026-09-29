@@ -486,6 +486,52 @@ mod tests {
     }
 
     #[test]
+    fn test_collect_relative_files_recursively() {
+        use std::fs::{self, File};
+        use tempfile::TempDir;
+
+        // 1. Setup a temporary workspace directory tree
+        let tmp_dir = TempDir::new().unwrap();
+        let root = tmp_dir.path();
+
+        // 2. Build structured files at varying directory nesting depths
+        let file1 = "src/main.rs";
+        let file2 = "src/utils/math.rs";
+        let file3 = "docs/readme.md";
+        let file4 = "root_file.txt";
+
+        let paths_to_create = [file1, file2, file3, file4];
+        for rel_path in &paths_to_create {
+            let full_path = root.join(rel_path);
+            // Ensure parent subdirectories are dynamically spun up
+            fs::create_dir_all(full_path.parent().unwrap()).unwrap();
+            File::create(full_path).unwrap();
+        }
+
+        // Create an empty directory variant to ensure it is cleanly bypassed
+        fs::create_dir_all(root.join("empty_dir_to_ignore")).unwrap();
+
+        // 3. Execute your path_utilities trait method
+        let relative_files = root.collect_relative_files().unwrap();
+
+        // 4. Assertions
+        assert_eq!(relative_files.len(), 4);
+
+        // BTreeSet enforces total alphabetical order; verify index sequencing
+        let files_vec: Vec<PathBuf> = relative_files.into_iter().collect();
+        assert_eq!(files_vec[0], PathBuf::from("docs/readme.md"));
+        assert_eq!(files_vec[1], PathBuf::from("root_file.txt"));
+        assert_eq!(files_vec[2], PathBuf::from("src/main.rs"));
+        assert_eq!(files_vec[3], PathBuf::from("src/utils/math.rs"));
+
+        // Confirm all output records are clean, un-prefixed relative paths
+        for path in &files_vec {
+            assert!(path.is_relative());
+            assert!(!path.starts_with(root));
+        }
+    }
+
+    #[test]
     fn test_usable_dir_entries_agree() {
         let current_dir = env::current_dir().unwrap();
 

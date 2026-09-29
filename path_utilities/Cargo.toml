@@ -8,3 +8,4 @@ authors = ["Peter Williams <pwil3058@.bigpond.net.au> <pwil3058@gmail.com>", ]
 dirs = "7.0"
 thiserror = "2.0"
 log = "0.4"
+tempfile = "3.27.0"
