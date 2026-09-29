@@ -1,10 +1,10 @@
 // Copyright (c) 2026 Peter Williams <pwil3058@bigpond.net.au> <pwil3058@gmail.com>.
 
+use std::collections::BTreeSet;
 use std::ffi::OsString;
 use std::fs::{DirEntry, FileType, Metadata, ReadDir};
 use std::path::{self, Component, Path, PathBuf};
 use std::{env, io};
-
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -239,7 +239,7 @@ impl Iterator for FilteredDirEntries {
     }
 }
 
-pub fn filtered_dir_entries(dir_path: impl AsRef<Path>) -> Result<FilteredDirEntries, io::Error> {
+pub fn filtered_dir_entries(dir_path: impl AsRef<Path>) -> io::Result<FilteredDirEntries> {
     let dir_path_str = dir_path.as_ref().display().to_string();
     let read_dir = dir_path.as_ref().read_dir()?;
     Ok(FilteredDirEntries(read_dir, dir_path_str))
@@ -318,15 +318,38 @@ impl Iterator for UsableDirEntries {
     }
 }
 
-pub fn usable_dir_entries(dir_path: impl AsRef<Path>) -> Result<UsableDirEntries, io::Error> {
+pub fn usable_dir_entries(dir_path: impl AsRef<Path>) -> io::Result<UsableDirEntries> {
     Ok(UsableDirEntries(filtered_dir_entries(dir_path)?))
+}
+
+/// Recursively gathers all paths within a target workspace directory,
+/// sorting and isolating them as strictly relative paths.
+pub fn collect_relative_files(root_path: impl AsRef<Path>) -> io::Result<BTreeSet<PathBuf>> {
+    let root = root_path.as_ref();
+    let mut file_set = BTreeSet::new();
+    let mut dirs_to_visit = vec![root.to_path_buf()];
+
+    while let Some(current_dir) = dirs_to_visit.pop() {
+        for entry in current_dir.usable_dir_entries()? {
+            if entry.is_dir() {
+                dirs_to_visit.push(entry.path());
+            } else if entry.is_file()
+                && let Ok(relative_path) = entry.path().strip_prefix(root)
+            {
+                file_set.insert(relative_path.to_path_buf());
+            }
+        }
+    }
+
+    Ok(file_set)
 }
 
 pub trait UsefulPathMethods {
     fn absolute_path_buf(&self) -> Result<PathBuf, Error>;
     fn relative_path_buf(&self) -> Result<PathBuf, Error>;
-    fn usable_dir_entries(&self) -> Result<UsableDirEntries, io::Error>;
-    fn filtered_dir_entries(&self) -> Result<FilteredDirEntries, io::Error>;
+    fn usable_dir_entries(&self) -> io::Result<UsableDirEntries>;
+    fn filtered_dir_entries(&self) -> io::Result<FilteredDirEntries>;
+    fn collect_relative_files(&self) -> io::Result<BTreeSet<PathBuf>>;
 }
 
 impl UsefulPathMethods for Path {
@@ -338,12 +361,16 @@ impl UsefulPathMethods for Path {
         relative_path_buf(self)
     }
 
-    fn usable_dir_entries(&self) -> Result<UsableDirEntries, io::Error> {
+    fn usable_dir_entries(&self) -> io::Result<UsableDirEntries> {
         usable_dir_entries(self)
     }
 
-    fn filtered_dir_entries(&self) -> Result<FilteredDirEntries, io::Error> {
+    fn filtered_dir_entries(&self) -> io::Result<FilteredDirEntries> {
         filtered_dir_entries(self)
+    }
+
+    fn collect_relative_files(&self) -> io::Result<BTreeSet<PathBuf>> {
+        collect_relative_files(self)
     }
 }
 
@@ -356,12 +383,16 @@ impl UsefulPathMethods for PathBuf {
         relative_path_buf(self)
     }
 
-    fn usable_dir_entries(&self) -> Result<UsableDirEntries, io::Error> {
+    fn usable_dir_entries(&self) -> io::Result<UsableDirEntries> {
         usable_dir_entries(self)
     }
 
-    fn filtered_dir_entries(&self) -> Result<FilteredDirEntries, io::Error> {
+    fn filtered_dir_entries(&self) -> io::Result<FilteredDirEntries> {
         filtered_dir_entries(self)
+    }
+
+    fn collect_relative_files(&self) -> io::Result<BTreeSet<PathBuf>> {
+        collect_relative_files(self)
     }
 }
 
