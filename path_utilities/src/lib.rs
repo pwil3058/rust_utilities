@@ -98,30 +98,42 @@ pub fn expand_current_dir<P: AsRef<Path>>(path_arg: P) -> Result<PathBuf, Error>
 }
 
 pub fn expand_parent_dirs<P: AsRef<Path>>(path_arg: P) -> Result<PathBuf, Error> {
-    let mut path_tail = path_arg.as_ref();
+    let path = path_arg.as_ref();
+    let mut components = path.components();
     let mut parent_dir = env::current_dir()?;
-    while path_tail.starts_with(Component::ParentDir) {
-        parent_dir = match parent_dir.parent() {
-            Some(parent_dir) => parent_dir.to_path_buf(),
-            None => return Err(Error::ParentDirNotFound),
-        };
-        path_tail = path_tail.strip_prefix(Component::ParentDir)?;
+
+    // Use a loop to consume sequential '..' components from the front
+    while let Some(component) = components.next() {
+        match component {
+            Component::ParentDir => {
+                parent_dir = match parent_dir.parent() {
+                    Some(p) => p.to_path_buf(),
+                    None => return Err(Error::ParentDirNotFound),
+                };
+            }
+            _ => {
+                // We hit a normal component or root! Reconstruct the rest of the path
+                // by joining the component we just checked with everything left in the iterator.
+                return Ok(parent_dir.join(component).join(components.as_path()));
+            }
+        }
     }
-    Ok(parent_dir.join(path_tail))
+
+    // If the loop finished and only contained '..', just return the updated parent path
+    Ok(parent_dir)
 }
 
 pub fn expand_home_dir<P: AsRef<Path>>(path_arg: P) -> Result<PathBuf, Error> {
     let path = path_arg.as_ref();
-    if path.starts_with("~") {
-        let home_dir = match dirs::home_dir() {
-            Some(home_dir) => home_dir,
-            None => return Err(Error::HomeDirNotFound),
-        };
-        let path_tail = path.strip_prefix("~")?;
-        Ok(home_dir.join(path_tail))
-    } else {
-        Err(Error::UnexpectedPrefix)
+    let mut components = path.components();
+
+    if let Some(Component::Normal(os_str)) = components.next() {
+        if os_str == "~" {
+            let home_dir = dirs::home_dir().ok_or(Error::HomeDirNotFound)?;
+            return Ok(home_dir.join(components.as_path()));
+        }
     }
+    Err(Error::UnexpectedPrefix)
 }
 
 pub fn expand_home_dir_or_mine<P: AsRef<Path>>(path: P) -> PathBuf {
@@ -356,6 +368,7 @@ impl UsefulPathMethods for PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashSet;
 
     #[test]
     fn simple_absolute_path_buf_works() {
@@ -444,12 +457,17 @@ mod tests {
     #[test]
     fn test_usable_dir_entries_agree() {
         let current_dir = env::current_dir().unwrap();
-        let usable_dir_entries = current_dir.usable_dir_entries().unwrap();
-        let filtered_dir_entries = filtered_dir_entries(&current_dir).unwrap();
-        assert!(
-            usable_dir_entries
-                .zip(filtered_dir_entries)
-                .all(|(l, r)| l.file_name() == r.file_name()),
-        );
+
+        let usable_names: HashSet<OsString> = usable_dir_entries(&current_dir)
+            .unwrap()
+            .map(|e| e.file_name())
+            .collect();
+
+        let filtered_names: HashSet<OsString> = filtered_dir_entries(&current_dir)
+            .unwrap()
+            .map(|e| e.file_name())
+            .collect();
+
+        assert_eq!(usable_names, filtered_names);
     }
 }
