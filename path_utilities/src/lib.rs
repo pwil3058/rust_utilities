@@ -324,13 +324,23 @@ pub fn usable_dir_entries(dir_path: impl AsRef<Path>) -> io::Result<UsableDirEnt
 
 /// Recursively gathers all paths within a target workspace directory,
 /// sorting and isolating them as strictly relative paths.
-pub fn collect_relative_files(root_path: impl AsRef<Path>) -> io::Result<BTreeSet<PathBuf>> {
+pub fn collect_relative_files(
+    root_path: impl AsRef<Path>,
+    excludes: &[String],
+) -> io::Result<BTreeSet<PathBuf>> {
     let root = root_path.as_ref();
     let mut file_set = BTreeSet::new();
     let mut dirs_to_visit = vec![root.to_path_buf()];
 
     while let Some(current_dir) = dirs_to_visit.pop() {
         for entry in current_dir.usable_dir_entries()? {
+            let file_name = entry.file_name();
+            let file_name_str = file_name.to_string_lossy();
+
+            if excludes.iter().any(|pattern| file_name_str == *pattern) {
+                continue;
+            }
+
             if entry.is_dir() {
                 dirs_to_visit.push(entry.path());
             } else if entry.is_file()
@@ -349,7 +359,7 @@ pub trait UsefulPathMethods {
     fn relative_path_buf(&self) -> Result<PathBuf, Error>;
     fn usable_dir_entries(&self) -> io::Result<UsableDirEntries>;
     fn filtered_dir_entries(&self) -> io::Result<FilteredDirEntries>;
-    fn collect_relative_files(&self) -> io::Result<BTreeSet<PathBuf>>;
+    fn collect_relative_files(&self, excludes: &[String]) -> io::Result<BTreeSet<PathBuf>>;
 }
 
 impl UsefulPathMethods for Path {
@@ -369,8 +379,8 @@ impl UsefulPathMethods for Path {
         filtered_dir_entries(self)
     }
 
-    fn collect_relative_files(&self) -> io::Result<BTreeSet<PathBuf>> {
-        collect_relative_files(self)
+    fn collect_relative_files(&self, excludes: &[String]) -> io::Result<BTreeSet<PathBuf>> {
+        collect_relative_files(self, excludes)
     }
 }
 
@@ -391,8 +401,8 @@ impl UsefulPathMethods for PathBuf {
         filtered_dir_entries(self)
     }
 
-    fn collect_relative_files(&self) -> io::Result<BTreeSet<PathBuf>> {
-        collect_relative_files(self)
+    fn collect_relative_files(&self, excludes: &[String]) -> io::Result<BTreeSet<PathBuf>> {
+        collect_relative_files(self, excludes)
     }
 }
 
@@ -512,7 +522,7 @@ mod tests {
         fs::create_dir_all(root.join("empty_dir_to_ignore")).unwrap();
 
         // 3. Execute your path_utilities trait method
-        let relative_files = root.collect_relative_files().unwrap();
+        let relative_files = root.collect_relative_files(&[]).unwrap();
 
         // 4. Assertions
         assert_eq!(relative_files.len(), 4);
