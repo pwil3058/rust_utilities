@@ -2,4 +2,4 @@
 
 resolver = "2"
 
-members = ["path_utilities", "recollections"]
+members = ["fixed_denominator_rational_numbers","path_utilities", "recollections"]
