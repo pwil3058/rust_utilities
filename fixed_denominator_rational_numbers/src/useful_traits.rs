@@ -31,15 +31,16 @@ impl Float for f64 {}
 
 pub trait MinNonZero {
     fn min_non_zero() -> Self;
+    fn times_min_non_zero(times: u8) -> Self;
 }
 
 pub trait ApproxEq: Copy + PartialEq + PartialOrd + Ord + MinNonZero + Sub<Output = Self> {
-    fn approx_eq(&self, other: &Self, max_diff: Option<Self>) -> bool {
+    fn approx_eq(&self, other: &Self, max_diff: Option<u8>) -> bool {
         if self.eq(other) {
             true
         } else {
             let max_diff = if let Some(max_diff) = max_diff {
-                max_diff
+                Self::times_min_non_zero(max_diff)
             } else {
                 Self::min_non_zero()
             };

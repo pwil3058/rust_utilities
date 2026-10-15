@@ -7,11 +7,11 @@ macro_rules! impl_to_from_float {
         ///
         /// Example:
         /// ```
-        /// use fixed_denominator_rational_numbers::UFDRNum;
+        /// use fixed_denominator_rational_numbers::{ assert_approx_eq, UFDRNum, ApproxEq, MinNonZero };
         ///
-        /// assert_eq!(UFDRNum::from(1.0), UFDRNum::ONE);
-        /// assert_eq!(UFDRNum::from(0.0), UFDRNum::ZERO);
-        /// assert_eq!(UFDRNum::from(5.0), UFDRNum::ONE * 5_u32);
+        /// assert_approx_eq!(UFDRNum::from(1.0), UFDRNum::ONE);
+        /// assert_approx_eq!(UFDRNum::from(0.0), UFDRNum::ZERO);
+        /// assert_approx_eq!(UFDRNum::from(5.0), UFDRNum::ONE * 5_u32, 5_u8);
         /// ```
         impl From<$float> for $number {
             fn from(arg: $float) -> Self {
@@ -35,4 +35,92 @@ macro_rules! impl_to_from_float {
             }
         }
     };
+}
+
+#[macro_export]
+macro_rules! assert_approx_eq {
+    ($left:expr, $right:expr) => {{
+        match (&$left, &$right) {
+            (left_val, right_val) => {
+                if !(*left_val).approx_eq(&*right_val, None) {
+                    panic!(
+                        "assertion failed: `left.approx_eq(right)\n` \
+                         left:  `{:?}`\n right: `{:?}`.",
+                        &*left_val, &*right_val
+                    )
+                }
+            }
+        }
+    }};
+    ($left:expr, $right:expr,) => {{ $crate::assert_approx_eq!($left, $right) }};
+    ($left:expr, $right:expr, $max_diff:expr) => {{
+        match (&$left, &$right) {
+            (left_val, right_val) => {
+                if !(*left_val).approx_eq(&*right_val, Some($max_diff)) {
+                    panic!(
+                        "assertion failed: `left.approx_eq(right)\n` \
+                         left:  `{:?}`\n right: `{:?}`.",
+                        &*left_val, &*right_val
+                    )
+                }
+            }
+        }
+    }};
+    ($left:expr, $right:expr, $max_diff:expr,) => {{ $crate::assert_approx_eq!($left, $right, $max_diff) }};
+}
+
+#[macro_export]
+macro_rules! debug_assert_approx_eq {
+    ($left:expr, $right:expr) => {{
+        if cfg!(debug_assertions) {
+            $crate::assert_approx_eq!($left, $right)
+        }
+    }};
+    ($left:expr, $right:expr,) => {{
+        if cfg!(debug_assertions) {
+            $crate::assert_approx_eq!($left, $right)
+        }
+    }};
+    ($left:expr, $right:expr, $max_diff:expr) => {{
+        if cfg!(debug_assertions) {
+            $crate::assert_approx_eq!($left, $right, $max_diff: expr)
+        }
+    }};
+    ($left:expr, $right:expr, $max_diff:expr,) => {{
+        if cfg!(debug_assertions) {
+            $crate::assert_approx_eq!($left, $right, $max_diff)
+        }
+    }};
+}
+
+#[macro_export]
+macro_rules! assert_approx_ne {
+    ($left:expr, $right:expr) => {{
+        match (&$left, &$right) {
+            (left_val, right_val) => {
+                if (*left_val).approx_eq(&*right_val, None) {
+                    panic!(
+                        "assertion failed: `left.approx_ne(right)\n` \
+                         left:  `{:?}`\n right: `{:?}`.",
+                        &*left_val, &*right_val
+                    )
+                }
+            }
+        }
+    }};
+    ($left:expr, $right:expr,) => {{ $crate::assert_approx_ne!($left, $right) }};
+    ($left:expr, $right:expr, $max_diff:expr) => {{
+        match (&$left, &$right) {
+            (left_val, right_val) => {
+                if (*left_val).approx_eq(&*right_val, Some($max_diff)) {
+                    panic!(
+                        "assertion failed: `left.approx_ne(right)\n` \
+                         left:  `{:?}`\n right: `{:?}`.",
+                        &*left_val, &*right_val
+                    )
+                }
+            }
+        }
+    }};
+    ($left:expr, $right:expr, $max_diff:expr,) => {{ $crate::assert_approx_ne!($left, $right, $max_diff) }};
 }
