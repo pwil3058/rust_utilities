@@ -3,26 +3,32 @@
 use std::ops::Sub;
 
 pub trait Unsigned {}
-pub trait UnsignedPrimitive: Unsigned + Into<u128> {}
+pub trait UnsignedInteger: Unsigned + Into<u128> {}
 
 impl Unsigned for u8 {}
 impl Unsigned for u16 {}
 impl Unsigned for u32 {}
 impl Unsigned for u64 {}
 impl Unsigned for u128 {}
-impl UnsignedPrimitive for u8 {}
-impl UnsignedPrimitive for u16 {}
-impl UnsignedPrimitive for u32 {}
-impl UnsignedPrimitive for u64 {}
-impl UnsignedPrimitive for u128 {}
+impl UnsignedInteger for u8 {}
+impl UnsignedInteger for u16 {}
+impl UnsignedInteger for u32 {}
+impl UnsignedInteger for u64 {}
+impl UnsignedInteger for u128 {}
 
-pub trait Signed: Unsigned {}
+pub trait Signed {}
+pub trait SignedInteger: Signed + Into<i128> {}
 
-impl Signed for u8 {}
-impl Signed for u16 {}
-impl Signed for u32 {}
-impl Signed for u64 {}
-impl Signed for u128 {}
+impl Signed for i8 {}
+impl Signed for i16 {}
+impl Signed for i32 {}
+impl Signed for i64 {}
+impl Signed for i128 {}
+impl SignedInteger for i8 {}
+impl SignedInteger for i16 {}
+impl SignedInteger for i32 {}
+impl SignedInteger for i64 {}
+impl SignedInteger for i128 {}
 
 pub trait Float {}
 

@@ -8,7 +8,7 @@ use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Rem, RemAssign, S
 
 use serde::{Deserialize, Serialize};
 
-use crate::{ApproxEq, MinNonZero, Unsigned, UnsignedPrimitive, impl_to_from_float};
+use crate::{ApproxEq, FDRNum, MinNonZero, Unsigned, UnsignedInteger, impl_to_from_float};
 
 /// Fixed denominator rational number as an approximate representation of real numbers
 #[derive(Serialize, Deserialize, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
@@ -88,7 +88,6 @@ impl UFDRNum {
     pub fn sqrt(self) -> Self {
         let half_shift = self.0.leading_zeros() / 2;
         let temp = (self.0 << (half_shift as usize * 2)).isqrt();
-        println!("half_shift: {}, temp: {:?}", half_shift, UFDRNum(temp));
         match half_shift.cmp(&32) {
             Ordering::Equal => Self(temp),
             Ordering::Greater => Self(temp >> (half_shift as usize - 32)),
@@ -97,8 +96,15 @@ impl UFDRNum {
     }
 }
 
+impl From<FDRNum> for UFDRNum {
+    fn from(num: FDRNum) -> Self {
+        assert!(!num.0.is_negative());
+        Self(num.0.cast_unsigned())
+    }
+}
+
 // Conversions
-impl<U: UnsignedPrimitive> From<U> for UFDRNum {
+impl<U: UnsignedInteger> From<U> for UFDRNum {
     /// Convert an unsigned integer into UFDRNum with a value equal to the unsigned integer.
     ///
     /// Example:
@@ -151,7 +157,7 @@ impl MulAssign for UFDRNum {
     }
 }
 
-impl<U: UnsignedPrimitive> Mul<U> for UFDRNum {
+impl<U: UnsignedInteger> Mul<U> for UFDRNum {
     type Output = Self;
 
     /// Multiply an UFDRnum by an unsigned integer
@@ -201,7 +207,7 @@ impl DivAssign for UFDRNum {
     }
 }
 
-impl<U: UnsignedPrimitive> Div<U> for UFDRNum {
+impl<U: UnsignedInteger> Div<U> for UFDRNum {
     type Output = Self;
 
     /// Multiply an UFDRnum by an unsigned integer
@@ -235,7 +241,6 @@ impl Add for UFDRNum {
     /// assert_approx_eq!(UFDRNum::from_rational_num(15, 2) + UFDRNum::from_rational_num(1, 2), UFDRNum::from(8_u8), 1_u8);
     /// ```
     fn add(self, rhs: Self) -> Self::Output {
-        assert!(self.0 >= rhs.0);
         Self(self.0 + rhs.0)
     }
 }
