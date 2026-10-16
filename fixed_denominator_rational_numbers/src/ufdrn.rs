@@ -4,7 +4,7 @@ use std::cmp::Ordering;
 // Copyright (c) 2026 Peter Williams <pwil3058@bigpond.net.au> <pwil3058@gmail.com>.
 use std::fmt;
 use std::fmt::{Debug, Formatter};
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Rem, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Rem, RemAssign, Sub, SubAssign};
 
 use serde::{Deserialize, Serialize};
 
@@ -288,5 +288,11 @@ impl Rem for UFDRNum {
     /// ```
     fn rem(self, rhs: Self) -> Self {
         Self(self.0 % rhs.0)
+    }
+}
+
+impl RemAssign for UFDRNum {
+    fn rem_assign(&mut self, rhs: Self) {
+        *self = *self % rhs;
     }
 }
