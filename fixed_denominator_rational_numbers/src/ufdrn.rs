@@ -4,7 +4,7 @@ use std::cmp::Ordering;
 // Copyright (c) 2026 Peter Williams <pwil3058@bigpond.net.au> <pwil3058@gmail.com>.
 use std::fmt;
 use std::fmt::{Debug, Formatter};
-use std::ops::{Add, Div, Mul, Sub};
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Rem, Sub, SubAssign};
 
 use serde::{Deserialize, Serialize};
 
@@ -51,7 +51,6 @@ impl UFDRNum {
     /// assert_eq!(UFDRNum::from_rational_num(17, 17), UFDRNum::ONE);
     /// assert_approx_eq!(UFDRNum::from_rational_num(5, 10), UFDRNum::ONE / 2_u8, 1);
     /// assert_eq!(UFDRNum::from_rational_num(u64::MAX as u128 * 2, u64::MAX as u128), UFDRNum::ONE * 2_u8);
-    /// //assert_approx_eq!(UFDRNum::from_rational_num(u128::MAX, u64::MAX as u128), UFDRNum::ONE * u64::MAX);
     /// ```
     pub fn from_rational_num(enumerator: u128, denominator: u128) -> Self {
         if enumerator == 0 {
@@ -69,6 +68,31 @@ impl UFDRNum {
                 let int = Self(enumerator / denominator * Self::DENOMINATOR);
                 int + Self::from_rational_num(enumerator % denominator, denominator)
             }
+        }
+    }
+
+    /// Return the square root of our value.
+    ///
+    /// Example:
+    /// ```
+    /// use fixed_denominator_rational_numbers::{assert_approx_eq, UFDRNum, ApproxEq, MinNonZero};
+    ///
+    /// let four: UFDRNum = UFDRNum::ONE * 4_u8;
+    /// let two: UFDRNum = UFDRNum::ONE * 2_u8;
+    /// assert_approx_eq!(four.sqrt(), two);
+    /// let twenty_five: UFDRNum = UFDRNum::ONE * 25_u8;
+    /// let five: UFDRNum = UFDRNum::ONE * 5_u8;
+    /// assert_approx_eq!(twenty_five.sqrt(), five, 5);
+    /// assert_eq!(UFDRNum::from_rational_num(1, 4).sqrt(), UFDRNum::from_rational_num(1, 2));
+    /// ```
+    pub fn sqrt(self) -> Self {
+        let half_shift = self.0.leading_zeros() / 2;
+        let temp = (self.0 << (half_shift as usize * 2)).isqrt();
+        println!("half_shift: {}, temp: {:?}", half_shift, UFDRNum(temp));
+        match half_shift.cmp(&32) {
+            Ordering::Equal => Self(temp),
+            Ordering::Greater => Self(temp >> (half_shift as usize - 32)),
+            Ordering::Less => Self(temp << (32 - half_shift as u128)),
         }
     }
 }
@@ -121,6 +145,12 @@ impl Mul for UFDRNum {
     }
 }
 
+impl MulAssign for UFDRNum {
+    fn mul_assign(&mut self, rhs: Self) {
+        *self = *self * rhs;
+    }
+}
+
 impl<U: UnsignedPrimitive> Mul<U> for UFDRNum {
     type Output = Self;
 
@@ -165,6 +195,12 @@ impl Div for UFDRNum {
     }
 }
 
+impl DivAssign for UFDRNum {
+    fn div_assign(&mut self, rhs: Self) {
+        *self = *self / rhs;
+    }
+}
+
 impl<U: UnsignedPrimitive> Div<U> for UFDRNum {
     type Output = Self;
 
@@ -204,6 +240,12 @@ impl Add for UFDRNum {
     }
 }
 
+impl AddAssign for UFDRNum {
+    fn add_assign(&mut self, rhs: Self) {
+        *self = *self + rhs;
+    }
+}
+
 // Sub
 impl Sub for UFDRNum {
     type Output = Self;
@@ -221,5 +263,30 @@ impl Sub for UFDRNum {
     fn sub(self, rhs: Self) -> Self::Output {
         assert!(self.0 >= rhs.0);
         Self(self.0 - rhs.0)
+    }
+}
+
+impl SubAssign for UFDRNum {
+    fn sub_assign(&mut self, rhs: Self) {
+        *self = *self - rhs;
+    }
+}
+
+// Rem
+impl Rem for UFDRNum {
+    type Output = Self;
+
+    /// Return the remainder after dividing self by rhs
+    ///
+    /// Example:
+    ///
+    /// ```
+    /// use fixed_denominator_rational_numbers::UFDRNum;
+    ///
+    /// assert_eq!(UFDRNum::ONE % (UFDRNum::ONE * 4_u8), UFDRNum::ONE);
+    /// assert_eq!((UFDRNum::ONE * 5u8) % (UFDRNum::ONE * 4_u8), UFDRNum::ONE);
+    /// ```
+    fn rem(self, rhs: Self) -> Self {
+        Self(self.0 % rhs.0)
     }
 }
