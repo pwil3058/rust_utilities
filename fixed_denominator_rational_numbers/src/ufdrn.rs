@@ -1,14 +1,13 @@
 // Copyright (c) 2026 Peter Williams <pwil3058@bigpond.net.au> <pwil3058@gmail.com>.
 
 use std::cmp::Ordering;
-// Copyright (c) 2026 Peter Williams <pwil3058@bigpond.net.au> <pwil3058@gmail.com>.
 use std::fmt;
 use std::fmt::{Debug, Formatter};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Rem, RemAssign, Sub, SubAssign};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{ApproxEq, FDRNum, MinNonZero, Unsigned, UnsignedInteger, impl_to_from_float};
+use crate::{AlmostZero, ApproxEq, FDRNum, Float, Unsigned, UnsignedInteger};
 
 /// Fixed denominator rational number as an approximate representation of real numbers
 #[derive(Serialize, Deserialize, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
@@ -22,17 +21,21 @@ impl Debug for UFDRNum {
     }
 }
 
-impl MinNonZero for UFDRNum {
-    fn min_non_zero() -> Self {
+impl AlmostZero for UFDRNum {
+    fn almost_zero() -> Self {
         UFDRNum(1)
     }
 
-    fn times_min_non_zero(times: u8) -> Self {
-        UFDRNum(times as u128)
+    fn times_almost_zero(times: u128) -> Self {
+        UFDRNum(times)
     }
 }
 
-impl Unsigned for UFDRNum {}
+impl Unsigned for UFDRNum {
+    const MAX: Self = UFDRNum(u128::MAX);
+    const ZERO: Self = UFDRNum(0);
+}
+
 impl ApproxEq for UFDRNum {}
 
 impl UFDRNum {
@@ -44,10 +47,10 @@ impl UFDRNum {
     ///
     /// Example:
     /// ```
-    /// use fixed_denominator_rational_numbers::{assert_approx_eq, UFDRNum, ApproxEq, MinNonZero};
+    /// use fixed_denominator_rational_numbers::{assert_approx_eq, UFDRNum, ApproxEq, AlmostZero};
     ///
     /// assert_eq!(UFDRNum::from_rational_num(4, 2), UFDRNum::ONE * 2_u8);
-    /// assert_approx_eq!(UFDRNum::from_rational_num(5, 2), UFDRNum::from(2.5_f64), 2);
+    /// assert_approx_eq!(UFDRNum::from_rational_num(5, 2), UFDRNum::from(2.5), 2);
     /// assert_eq!(UFDRNum::from_rational_num(17, 17), UFDRNum::ONE);
     /// assert_approx_eq!(UFDRNum::from_rational_num(5, 10), UFDRNum::ONE / 2_u8, 1);
     /// assert_eq!(UFDRNum::from_rational_num(u64::MAX as u128 * 2, u64::MAX as u128), UFDRNum::ONE * 2_u8);
@@ -61,7 +64,7 @@ impl UFDRNum {
             Equal => Self::ONE,
             Greater => {
                 let shift = enumerator.leading_zeros();
-                let result = (enumerator << shift) / denominator as u128;
+                let result = (enumerator << shift) / denominator;
                 Self(result >> (shift - 64))
             }
             Less => {
@@ -75,7 +78,7 @@ impl UFDRNum {
     ///
     /// Example:
     /// ```
-    /// use fixed_denominator_rational_numbers::{assert_approx_eq, UFDRNum, ApproxEq, MinNonZero};
+    /// use fixed_denominator_rational_numbers::{assert_approx_eq, UFDRNum, ApproxEq, AlmostZero};
     ///
     /// let four: UFDRNum = UFDRNum::ONE * 4_u8;
     /// let two: UFDRNum = UFDRNum::ONE * 2_u8;
@@ -120,8 +123,45 @@ impl<U: UnsignedInteger> From<U> for UFDRNum {
     }
 }
 
-impl_to_from_float!(f64, u128, UFDRNum);
-impl_to_from_float!(f32, u128, UFDRNum);
+#[macro_export]
+macro_rules! impl_to_from_float {
+    ($float:ty, $core:ty, $number:ty) => {
+        impl From<$float> for $number {
+            fn from(arg: $float) -> Self {
+                Self((arg * u64::MAX as $float) as $core)
+            }
+        }
+
+        impl From<$number> for $float {
+            fn from(arg: $number) -> Self {
+                arg.0 as $float / u64::MAX as $float
+            }
+        }
+    };
+}
+
+impl From<f64> for UFDRNum {
+    /// Convert from f64
+    ///
+    /// Example:
+    ///
+    /// ```
+    /// use fixed_denominator_rational_numbers::{Float,UFDRNum, assert_approx_eq, ApproxEq};
+    ///
+    /// assert_approx_eq!(UFDRNum::from(1.0), UFDRNum::ONE);
+    /// assert_approx_eq!(UFDRNum::from(0.25), UFDRNum::ONE / 4u8)
+    /// ```
+    fn from(arg: f64) -> Self {
+        assert!(!arg.is_negative());
+        Self((arg * f64::from_u128(Self::DENOMINATOR)).into_u128())
+    }
+}
+
+impl From<UFDRNum> for f64 {
+    fn from(arg: UFDRNum) -> Self {
+        arg.0 as f64 / u64::MAX as f64
+    }
+}
 
 // Ops
 // Mul
@@ -135,7 +175,7 @@ impl Mul for UFDRNum {
     /// ```
     /// use fixed_denominator_rational_numbers::{assert_approx_eq, UFDRNum, ApproxEq};
     ///
-    /// assert_approx_eq!(UFDRNum::from(0.5_f64) * UFDRNum::from(2_u8), UFDRNum::ONE);
+    /// assert_approx_eq!(UFDRNum::from(0.5) * UFDRNum::from(2_u8), UFDRNum::ONE);
     /// ```
     fn mul(self, rhs: Self) -> Self::Output {
         let l_int = self.0 / Self::DENOMINATOR;
@@ -165,7 +205,7 @@ impl<U: UnsignedInteger> Mul<U> for UFDRNum {
     /// Example:
     ///
     /// ```
-    /// use fixed_denominator_rational_numbers::UFDRNum;
+    /// use fixed_denominator_rational_numbers::{UFDRNum};
     ///
     /// assert_eq!(UFDRNum::ONE * 5_u32, UFDRNum::from(5_u32));
     /// ```
@@ -185,9 +225,10 @@ impl Div for UFDRNum {
     /// Example:
     ///
     /// ```
-    /// use fixed_denominator_rational_numbers::{assert_approx_eq, UFDRNum, ApproxEq, MinNonZero};
+    /// use fixed_denominator_rational_numbers::{assert_approx_eq, UFDRNum, ApproxEq, AlmostZero};
     ///
-    /// assert_approx_eq!(UFDRNum::from(5_u64) / UFDRNum::from(2_u8), UFDRNum::from(2.5_f64), 3_u8);
+    /// assert_approx_eq!(UFDRNum::from(5_u64) / UFDRNum::from(2_u8), UFDRNum::from(2.5_f64), 3);
+    /// assert_approx_eq!(UFDRNum::from(6_u64) / UFDRNum::from(2_u8), UFDRNum::from(3_u64), 3);
     /// ```
     fn div(self, rhs: Self) -> Self {
         match rhs.0 % Self::DENOMINATOR {
@@ -215,9 +256,9 @@ impl<U: UnsignedInteger> Div<U> for UFDRNum {
     /// Example:
     ///
     /// ```
-    /// use fixed_denominator_rational_numbers::{assert_approx_eq, UFDRNum, ApproxEq, MinNonZero};
+    /// use fixed_denominator_rational_numbers::{assert_approx_eq, UFDRNum, ApproxEq, AlmostZero};
     ///
-    /// assert_approx_eq!(UFDRNum::ONE / 4_u32, UFDRNum::from(0.25_f64), 2_u8);
+    /// assert_approx_eq!(UFDRNum::ONE / 4_u32, UFDRNum::from(0.25), 2);
     /// ```
     fn div(self, rhs: U) -> Self::Output {
         // N.B. Do this separately to avoid ambiguity with U::into::<UFDRNum>().
@@ -235,10 +276,10 @@ impl Add for UFDRNum {
     /// Example:
     ///
     /// ```
-    /// use fixed_denominator_rational_numbers::{UFDRNum, ApproxEq, MinNonZero, assert_approx_eq};
+    /// use fixed_denominator_rational_numbers::{UFDRNum, ApproxEq, AlmostZero, assert_approx_eq};
     ///
     /// assert_eq!(UFDRNum::ONE * 2_u8 + UFDRNum::ONE, UFDRNum::ONE * 3_u8);
-    /// assert_approx_eq!(UFDRNum::from_rational_num(15, 2) + UFDRNum::from_rational_num(1, 2), UFDRNum::from(8_u8), 1_u8);
+    /// assert_approx_eq!(UFDRNum::from_rational_num(15, 2) + UFDRNum::from_rational_num(1, 2), UFDRNum::from(8_u8), 1_u128);
     /// ```
     fn add(self, rhs: Self) -> Self::Output {
         Self(self.0 + rhs.0)
@@ -260,10 +301,10 @@ impl Sub for UFDRNum {
     /// Example:
     ///
     /// ```
-    /// use fixed_denominator_rational_numbers::{UFDRNum, ApproxEq, MinNonZero};
+    /// use fixed_denominator_rational_numbers::{UFDRNum, ApproxEq, AlmostZero};
     ///
     /// assert_eq!(UFDRNum::ONE * 2_u8 - UFDRNum::ONE, UFDRNum::ONE);
-    /// assert_eq!(UFDRNum::from(7.5_f64) - UFDRNum::from(5.2_f64), UFDRNum::from(2.3_f64));
+    /// assert_eq!(UFDRNum::from(7.5) - UFDRNum::from(5.2), UFDRNum::from(2.3));
     /// ```
     fn sub(self, rhs: Self) -> Self::Output {
         assert!(self.0 >= rhs.0);

@@ -1,23 +1,6 @@
 // Copyright (c) 2026 Peter Williams <pwil3058@bigpond.net.au> <pwil3058@gmail.com>.
 
 #[macro_export]
-macro_rules! impl_to_from_float {
-    ($float:ty, $core:ty, $number:ty) => {
-        impl From<$float> for $number {
-            fn from(arg: $float) -> Self {
-                Self((arg * u64::MAX as $float) as $core)
-            }
-        }
-
-        impl From<$number> for $float {
-            fn from(arg: $number) -> Self {
-                arg.0 as $float / u64::MAX as $float
-            }
-        }
-    };
-}
-
-#[macro_export]
 macro_rules! assert_approx_eq {
     ($left:expr, $right:expr) => {{
         match (&$left, &$right) {

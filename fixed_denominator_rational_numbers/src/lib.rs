@@ -3,9 +3,11 @@
 pub mod macros;
 
 pub mod fdrn;
+pub mod prop;
 pub mod ufdrn;
 pub mod useful_traits;
 
 pub use fdrn::FDRNum;
+pub use prop::Prop;
 pub use ufdrn::UFDRNum;
 pub use useful_traits::*;
