@@ -3,6 +3,11 @@
 version = 4
 
 [[package]]
+name = "approximately_equal"
+version = "0.1.0"
+source = "git+https://github.com/pwil3058/approximately_equal#0611c41eeca69c356103b4a5a19afff02c38a67c"
+
+[[package]]
 name = "bitflags"
 version = "2.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -64,6 +69,7 @@ checksum = "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223"
 name = "fixed_denominator_rational_numbers"
 version = "0.1.0"
 dependencies = [
+ "approximately_equal",
  "serde",
 ]
 

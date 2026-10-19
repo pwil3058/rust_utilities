@@ -124,22 +124,22 @@ pub trait AlmostZero {
     fn times_almost_zero(times: u128) -> Self;
 }
 
-pub trait ApproxEq: Copy + PartialEq + PartialOrd + Ord + AlmostZero + Sub<Output = Self> {
-    fn approx_eq(&self, other: &Self, max_diff: Option<u128>) -> bool {
-        if self.eq(other) {
-            true
-        } else {
-            let max_diff = if let Some(max_diff) = max_diff {
-                Self::times_almost_zero(max_diff)
-            } else {
-                Self::almost_zero()
-            };
-            let diff = if self >= other {
-                *self - *other
-            } else {
-                *other - *self
-            };
-            diff <= max_diff
-        }
-    }
-}
+// pub trait ApproxEq: Copy + PartialEq + PartialOrd + Ord + AlmostZero + Sub<Output = Self> {
+//     fn approx_eq(&self, other: &Self, max_diff: Option<u128>) -> bool {
+//         if self.eq(other) {
+//             true
+//         } else {
+//             let max_diff = if let Some(max_diff) = max_diff {
+//                 Self::times_almost_zero(max_diff)
+//             } else {
+//                 Self::almost_zero()
+//             };
+//             let diff = if self >= other {
+//                 *self - *other
+//             } else {
+//                 *other - *self
+//             };
+//             diff <= max_diff
+//         }
+//     }
+// }

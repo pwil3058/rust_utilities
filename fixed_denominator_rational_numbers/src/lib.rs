@@ -1,7 +1,8 @@
 // Copyright (c) 2026 Peter Williams <pwil3058@bigpond.net.au> <pwil3058@gmail.com>.
 
-pub mod macros;
+// pub mod macros;
 
+pub mod debug;
 pub mod fdrn;
 pub mod prop;
 pub mod ufdrn;
