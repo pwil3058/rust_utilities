@@ -307,17 +307,23 @@ impl Div for UFDRNum {
     /// use fixed_denominator_rational_numbers::{UFDRNum, debug::ApproxEq};
     /// use approximately_equal::assert_approx_eq;
     ///
-    /// assert_approx_eq!(UFDRNum::from(5_u64) / UFDRNum::from(2_u8), UFDRNum::from(2.5_f64), 3);
-    /// assert_approx_eq!(UFDRNum::from(6_u64) / UFDRNum::from(2_u8), UFDRNum::from(3_u64), 3);
+    /// assert_eq!(UFDRNum::from(5_u64) / UFDRNum::from(10_u64), UFDRNum::from(0.5_f64));
+    /// assert_eq!(UFDRNum::from(5_u64) / UFDRNum::from(2_u8), UFDRNum::from(2.5_f64));
+    /// assert_approx_eq!(UFDRNum::from(6_u64) / UFDRNum::from(2_u8), UFDRNum::from(3_u64));
+    /// assert_eq!(UFDRNum::from(6_u64) / UFDRNum::from(6_u8), UFDRNum::ONE);
+    /// assert_eq!(UFDRNum::from(7_u64) / UFDRNum::from(4_u8), UFDRNum::from(1.75f64));
     /// ```
     fn div(self, rhs: Self) -> Self {
-        match rhs.0 % Self::DENOMINATOR {
-            // NB: faster AND more accurate
-            0 => Self(self.0 / (rhs.0 / Self::DENOMINATOR)),
-            _ => match self.0.cmp(&rhs.0) {
-                Ordering::Equal => Self::ONE,
-                Ordering::Less | Ordering::Greater => self.mul(Self(u128::MAX / rhs.0)),
-            },
+        match self.0.cmp(&rhs.0) {
+            Ordering::Equal => UFDRNum::ONE,
+            _ => {
+                let offset = (self.0.leading_zeros() / 2) * 2;
+                match offset.cmp(&64) {
+                    Ordering::Equal => UFDRNum((self.0 << offset) / rhs.0),
+                    Ordering::Greater => UFDRNum(((self.0 << offset) / rhs.0) >> (offset - 64)),
+                    Ordering::Less => UFDRNum(((self.0 << offset) / rhs.0) << (64 - offset)),
+                }
+            }
         }
     }
 }

@@ -16,6 +16,7 @@ impl Prop {
     pub const ONE: Self = Self(u64::MAX);
 
     pub fn from_fraction(enumerator: u64, denominator: u64) -> Self {
+        debug_assert!(denominator >= enumerator);
         Self(((enumerator as u128) * (u64::MAX as u128) / (denominator as u128)) as u64)
     }
 
