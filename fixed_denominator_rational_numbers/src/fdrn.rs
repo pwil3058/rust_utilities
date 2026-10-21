@@ -10,7 +10,6 @@ use serde::{Deserialize, Serialize};
 use crate::{
     AlmostZero, Prop, Signed, SignedInteger, UFDRNum,
     debug::{AbsDiff, ApproxEq, PropDiff},
-    impl_to_from_float,
 };
 
 /// Fixed denominator rational number as an approximate representation of real numbers
@@ -155,8 +154,29 @@ impl<S: SignedInteger> From<S> for FDRNum {
     }
 }
 
-impl_to_from_float!(f64, i128, FDRNum);
-impl_to_from_float!(f32, i128, FDRNum);
+impl From<f64> for FDRNum {
+    /// Convert from f64
+    ///
+    /// Example:
+    ///
+    /// ```
+    /// use fixed_denominator_rational_numbers::{Float,FDRNum, debug::ApproxEq};
+    /// use approximately_equal::assert_approx_eq;
+    ///
+    /// assert_approx_eq!(FDRNum::from(1.0), FDRNum::ONE);
+    /// assert_approx_eq!(FDRNum::from(0.25), FDRNum::from_rational_num(1, 4));
+    /// assert_approx_eq!(FDRNum::from(-0.25), FDRNum::MINUS_ONE / 4, 4);
+    /// ```
+    fn from(arg: f64) -> Self {
+        Self((arg * Self::DENOMINATOR as f64) as i128)
+    }
+}
+
+impl From<UFDRNum> for f64 {
+    fn from(arg: UFDRNum) -> Self {
+        arg.0 as f64 / u64::MAX as f64
+    }
+}
 
 // Ops
 // Add

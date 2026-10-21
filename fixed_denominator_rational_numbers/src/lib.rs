@@ -10,3 +10,6 @@ pub use fdrn::FDRNum;
 pub use prop::Prop;
 pub use ufdrn::UFDRNum;
 pub use useful_traits::*;
+
+#[cfg(test)]
+mod fdrn_tests;

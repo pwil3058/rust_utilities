@@ -80,7 +80,7 @@ impl_prop_diff_for_float!(f32);
 impl_prop_diff_for_float!(f64);
 
 pub trait ApproxEq: Copy + PropDiff + PartialEq {
-    const DEFAULT_MAX_DIFF: Prop = Prop(0x0000000000001000);
+    const DEFAULT_MAX_DIFF: Prop = Prop(0x1);
 
     fn approx_eq(&self, other: &Self, max_diff: Option<u64>) -> bool {
         if self.eq(other) {

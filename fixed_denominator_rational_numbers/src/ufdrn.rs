@@ -5,6 +5,7 @@ use std::fmt;
 use std::fmt::{Debug, Formatter};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Rem, RemAssign, Sub, SubAssign};
 
+use gcd::Gcd;
 use serde::{Deserialize, Serialize};
 
 use crate::debug::{AbsDiff, ApproxEq, PropDiff};
@@ -46,26 +47,32 @@ impl UFDRNum {
     /// use approximately_equal::assert_approx_eq;
     ///
     /// assert_eq!(UFDRNum::from_rational_num(4, 2), UFDRNum::ONE * 2_u8);
-    /// assert_approx_eq!(UFDRNum::from_rational_num(5, 2), UFDRNum::from(2.5), 2);
+    /// assert_eq!(UFDRNum::from_rational_num(5, 2), UFDRNum::from(2.5));
     /// assert_eq!(UFDRNum::from_rational_num(17, 17), UFDRNum::ONE);
-    /// assert_approx_eq!(UFDRNum::from_rational_num(5, 10), UFDRNum::ONE / 2_u8, 1);
+    /// assert_eq!(UFDRNum::from_rational_num(5, 10), UFDRNum::from(0.5));
     /// assert_eq!(UFDRNum::from_rational_num(u64::MAX as u128 * 2, u64::MAX as u128), UFDRNum::ONE * 2_u8);
     /// ```
     pub fn from_rational_num(enumerator: u128, denominator: u128) -> Self {
+        assert!(denominator > 0);
         if enumerator == 0 {
-            return Self::ZERO;
-        }
-        use Ordering::*;
-        match denominator.cmp(&enumerator) {
-            Equal => Self::ONE,
-            Greater => {
+            Self::ZERO
+        } else {
+            let gcd = enumerator.gcd(denominator);
+            let enumerator = enumerator / gcd;
+            let denominator = denominator / gcd;
+            if enumerator == denominator {
+                Self::ONE
+            } else if denominator == 1 {
+                Self(enumerator * Self::DENOMINATOR)
+            } else {
                 let shift = enumerator.leading_zeros();
-                let result = (enumerator << shift) / denominator;
-                Self(result >> (shift - 64))
-            }
-            Less => {
-                let int = Self(enumerator / denominator * Self::DENOMINATOR);
-                int + Self::from_rational_num(enumerator % denominator, denominator)
+                let temp = (enumerator << shift) / denominator;
+                use Ordering::*;
+                match shift.cmp(&64) {
+                    Less => UFDRNum(temp << (64 - shift)),
+                    Equal => UFDRNum(temp),
+                    Greater => UFDRNum(temp >> (shift - 64)),
+                }
             }
         }
     }
@@ -82,8 +89,8 @@ impl UFDRNum {
     /// assert_approx_eq!(four.sqrt(), two);
     /// let twenty_five: UFDRNum = UFDRNum::ONE * 25_u8;
     /// let five: UFDRNum = UFDRNum::ONE * 5_u8;
-    /// assert_approx_eq!(twenty_five.sqrt(), five, 5);
-    /// assert_eq!(UFDRNum::from_rational_num(1, 4).sqrt(), UFDRNum::from_rational_num(1, 2));
+    /// assert_approx_eq!(twenty_five.sqrt(), five);
+    /// assert_approx_eq!(UFDRNum::from_rational_num(1, 4).sqrt(), UFDRNum::from_rational_num(1, 2));
     /// ```
     pub fn sqrt(self) -> Self {
         let half_shift = self.0.leading_zeros() / 2;
@@ -147,23 +154,6 @@ impl<U: UnsignedInteger> From<U> for UFDRNum {
     }
 }
 
-#[macro_export]
-macro_rules! impl_to_from_float {
-    ($float:ty, $core:ty, $number:ty) => {
-        impl From<$float> for $number {
-            fn from(arg: $float) -> Self {
-                Self((arg * u64::MAX as $float) as $core)
-            }
-        }
-
-        impl From<$number> for $float {
-            fn from(arg: $number) -> Self {
-                arg.0 as $float / u64::MAX as $float
-            }
-        }
-    };
-}
-
 impl From<f64> for UFDRNum {
     /// Convert from f64
     ///
@@ -178,18 +168,17 @@ impl From<f64> for UFDRNum {
     /// ```
     fn from(arg: f64) -> Self {
         assert!(!arg.is_negative());
-        Self((arg * f64::from_u128(Self::DENOMINATOR)).into_u128())
+        Self((arg * Self::DENOMINATOR as f64) as u128)
     }
 }
 
-impl From<UFDRNum> for f64 {
-    fn from(arg: UFDRNum) -> Self {
+impl From<FDRNum> for f64 {
+    fn from(arg: FDRNum) -> Self {
         arg.0 as f64 / u64::MAX as f64
     }
 }
 
 // Ops
-
 // Add
 impl Add for UFDRNum {
     type Output = Self;
@@ -307,24 +296,16 @@ impl Div for UFDRNum {
     /// use fixed_denominator_rational_numbers::{UFDRNum, debug::ApproxEq};
     /// use approximately_equal::assert_approx_eq;
     ///
-    /// assert_eq!(UFDRNum::from(5_u64) / UFDRNum::from(10_u64), UFDRNum::from(0.5_f64));
-    /// assert_eq!(UFDRNum::from(5_u64) / UFDRNum::from(2_u8), UFDRNum::from(2.5_f64));
-    /// assert_approx_eq!(UFDRNum::from(6_u64) / UFDRNum::from(2_u8), UFDRNum::from(3_u64));
+    /// assert_eq!(UFDRNum::from(5_u64) / UFDRNum::from(10_u64), UFDRNum::from_rational_num(1,2));
+    /// assert_eq!(UFDRNum::from(5_u64) / UFDRNum::from(2_u8), UFDRNum::from_rational_num(5,2));
+    /// assert_eq!(UFDRNum::from(6_u64) / UFDRNum::from(2_u8), UFDRNum::from(3_u64));
     /// assert_eq!(UFDRNum::from(6_u64) / UFDRNum::from(6_u8), UFDRNum::ONE);
-    /// assert_eq!(UFDRNum::from(7_u64) / UFDRNum::from(4_u8), UFDRNum::from(1.75f64));
+    /// assert_eq!(UFDRNum::from(7_u64) / UFDRNum::from(4_u8), UFDRNum::from_rational_num(7, 4));
+    /// assert_eq!(UFDRNum::from_rational_num(1,2) / UFDRNum::from_rational_num(1,4), UFDRNum::from(2u8));
+    /// assert_eq!(UFDRNum::ONE / UFDRNum::from(5u8), UFDRNum::from_rational_num(1,5));
     /// ```
     fn div(self, rhs: Self) -> Self {
-        match self.0.cmp(&rhs.0) {
-            Ordering::Equal => UFDRNum::ONE,
-            _ => {
-                let offset = (self.0.leading_zeros() / 2) * 2;
-                match offset.cmp(&64) {
-                    Ordering::Equal => UFDRNum((self.0 << offset) / rhs.0),
-                    Ordering::Greater => UFDRNum(((self.0 << offset) / rhs.0) >> (offset - 64)),
-                    Ordering::Less => UFDRNum(((self.0 << offset) / rhs.0) << (64 - offset)),
-                }
-            }
-        }
+        Self::from_rational_num(self.0, rhs.0)
     }
 }
 

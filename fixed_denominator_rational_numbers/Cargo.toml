@@ -6,5 +6,6 @@ authors = ["Peter Williams <pwil3058@.bigpond.net.au> <pwil3058@gmail.com>", ]
 
 [dependencies]
 serde = { version = "1.0.229", features = ["derive"] }
+gcd = "2.3"
 
 approximately_equal = { git = "https://github.com/pwil3058/approximately_equal" }
