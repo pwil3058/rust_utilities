@@ -33,6 +33,7 @@ impl FDRNum {
     pub const ZERO: Self = Self(0);
     pub const ONE: Self = Self(Self::DENOMINATOR);
     pub const MINUS_ONE: Self = Self(-Self::DENOMINATOR);
+    pub const SQRT_2: Self = FDRNum(0x16A09E667F3BCC906);
 
     pub fn is_negative(self) -> bool {
         self.0.is_negative()

@@ -2,13 +2,14 @@
 
 use approximately_equal::assert_approx_eq;
 
-use crate::{Prop, UFDRNum, debug::ApproxEq};
+use crate::{FDRNum, Prop, UFDRNum, debug::ApproxEq};
 
-// #[test]
-// fn sqrt_2() {
-//     assert_eq!(f64::from(FDRNum::SQRT_2), std::f64::consts::SQRT_2);
-//     assert_eq!(f64::from(UFDRNum::SQRT_2), std::f64::consts::SQRT_2);
-// }
+#[test]
+fn sqrt_2() {
+    assert_eq!(f64::from(FDRNum::SQRT_2), std::f64::consts::SQRT_2);
+    assert_eq!(f64::from(UFDRNum::SQRT_2), std::f64::consts::SQRT_2);
+    assert_eq!(UFDRNum::from(2u8).sqrt(), UFDRNum::SQRT_2);
+}
 
 #[test]
 fn ufdrn_mul() {

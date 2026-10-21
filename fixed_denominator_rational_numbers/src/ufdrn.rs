@@ -34,6 +34,7 @@ impl UFDRNum {
     pub const DENOMINATOR: u128 = u64::MAX as u128;
     pub const ZERO: Self = Self(0);
     pub const ONE: Self = Self(Self::DENOMINATOR);
+    pub const SQRT_2: Self = UFDRNum(0x16A09E667F3BCC906);
 
     pub fn is_proportion(self) -> bool {
         self <= Self::ONE
@@ -53,7 +54,7 @@ impl UFDRNum {
     /// assert_eq!(UFDRNum::from_rational_num(u64::MAX as u128 * 2, u64::MAX as u128), UFDRNum::ONE * 2_u8);
     /// ```
     pub fn from_rational_num(enumerator: u128, denominator: u128) -> Self {
-        assert!(denominator > 0);
+        assert_ne!(denominator, 0);
         if enumerator == 0 {
             Self::ZERO
         } else {
@@ -191,7 +192,7 @@ impl Add for UFDRNum {
     /// use fixed_denominator_rational_numbers::{UFDRNum, debug::ApproxEq};
     /// use approximately_equal::assert_approx_eq;
     ///
-    /// assert_eq!(UFDRNum::ONE * 2_u8 + UFDRNum::ONE, UFDRNum::ONE * 3_u8);
+    /// assert_eq!(UFDRNum::from(2u8) + UFDRNum::ONE, UFDRNum::from(3u8));
     /// assert_approx_eq!(UFDRNum::from_rational_num(15, 2) + UFDRNum::from_rational_num(1, 2), UFDRNum::from(8_u8), 1);
     /// ```
     fn add(self, rhs: Self) -> Self::Output {
@@ -216,7 +217,7 @@ impl Sub for UFDRNum {
     /// ```
     /// use fixed_denominator_rational_numbers::{UFDRNum};
     ///
-    /// assert_eq!(UFDRNum::ONE * 2_u8 - UFDRNum::ONE, UFDRNum::ONE);
+    /// assert_eq!(UFDRNum::from(2_u8) - UFDRNum::ONE, UFDRNum::ONE);
     /// assert_eq!(UFDRNum::from(7.5) - UFDRNum::from(5.2), UFDRNum::from(2.3));
     /// ```
     fn sub(self, rhs: Self) -> Self::Output {
@@ -284,6 +285,12 @@ impl<U: UnsignedInteger> Mul<U> for UFDRNum {
     }
 }
 
+impl<U: UnsignedInteger> MulAssign<U> for UFDRNum {
+    fn mul_assign(&mut self, rhs: U) {
+        *self = *self * rhs;
+    }
+}
+
 // Div
 impl Div for UFDRNum {
     type Output = Self;
@@ -335,6 +342,12 @@ impl<U: UnsignedInteger> Div<U> for UFDRNum {
     }
 }
 
+impl<U: UnsignedInteger> DivAssign<U> for UFDRNum {
+    fn div_assign(&mut self, rhs: U) {
+        *self = *self / rhs;
+    }
+}
+
 // Rem
 impl Rem for UFDRNum {
     type Output = Self;
@@ -377,5 +390,11 @@ impl<U: UnsignedInteger> Rem<U> for UFDRNum {
         // N.B. Do this separately to avoid ambiguity with U::into::<UFDRNum>().
         let rhs: u128 = rhs.into();
         Self(self.0 % rhs)
+    }
+}
+
+impl<U: UnsignedInteger> RemAssign<U> for UFDRNum {
+    fn rem_assign(&mut self, rhs: U) {
+        *self = *self % rhs;
     }
 }
