@@ -192,47 +192,6 @@ macro_rules! impl_into_from_as_prop_number {
 impl_into_from_as_prop_number!(UFDRNum, u128, Prop);
 impl_into_from_as_prop_number!(FDRNum, i128, Prop);
 
-#[macro_export]
-macro_rules! impl_unsigned_to_from_prop {
-    (u64) => {
-        impl From<u64> for Prop {
-            fn from(arg: u64) -> Self {
-                Self(arg as u64)
-            }
-        }
-
-        impl From<Prop> for u64 {
-            fn from(arg: Prop) -> Self {
-                arg.0 as u64
-            }
-        }
-
-        impl IntoProp for u64 {}
-    };
-    ($unsigned:ty) => {
-        impl From<$unsigned> for Prop {
-            fn from(arg: $unsigned) -> Self {
-                let val = arg as u128 * u64::MAX as u128 / <$unsigned>::MAX as u128;
-                Self(val as u64)
-            }
-        }
-
-        impl From<Prop> for $unsigned {
-            fn from(arg: Prop) -> Self {
-                let val = arg.0 as u128 * <$unsigned>::MAX as u128 / u64::MAX as u128;
-                val as $unsigned
-            }
-        }
-
-        impl IntoProp for $unsigned {}
-    };
-}
-
-impl_unsigned_to_from_prop!(u8);
-impl_unsigned_to_from_prop!(u16);
-impl_unsigned_to_from_prop!(u32);
-impl_unsigned_to_from_prop!(u64);
-
 impl Mul for Prop {
     type Output = Self;
 

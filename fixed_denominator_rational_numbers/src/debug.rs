@@ -44,7 +44,7 @@ macro_rules! impl_prop_diff_for_unsigned {
     ($unsigned:ty) => {
         impl PropDiff for $unsigned {
             fn prop_diff(&self, other: &Self) -> Option<Prop> {
-                Some(self.abs_diff(other).into())
+                Some(self.abs_diff(other).into_as_prop())
             }
         }
     };
