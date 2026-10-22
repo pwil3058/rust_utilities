@@ -9,25 +9,14 @@ use gcd::Gcd;
 use serde::{Deserialize, Serialize};
 
 use crate::debug::{AbsDiff, ApproxEq, PropDiff};
-use crate::{AlmostZero, FDRNum, Float, Prop, Unsigned, UnsignedInteger};
+use crate::{FDRNum, Float, FromAsProp, IntoAsProp, Prop, Unsigned, UnsignedInteger};
 
 /// Fixed denominator rational number as an approximate representation of real numbers
 #[derive(Serialize, Deserialize, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct UFDRNum(pub(crate) u128);
 
-impl AlmostZero for UFDRNum {
-    fn almost_zero() -> Self {
-        UFDRNum(1)
-    }
-
-    fn times_almost_zero(times: u128) -> Self {
-        UFDRNum(times)
-    }
-}
-
 impl Unsigned for UFDRNum {
     const MAX: Self = UFDRNum(u128::MAX);
-    const ZERO: Self = UFDRNum(0);
 }
 
 impl UFDRNum {
@@ -117,13 +106,13 @@ impl AbsDiff for UFDRNum {}
 impl PropDiff for UFDRNum {
     fn prop_diff(&self, other: &Self) -> Option<Prop> {
         if self.is_proportion() && other.is_proportion() {
-            Some(self.abs_diff(other).into())
+            Some(self.abs_diff(other).into_as_prop())
         } else {
             let denom = self.max(other);
             if *denom == UFDRNum::ZERO {
                 Some(Prop::ZERO)
             } else {
-                Some(Prop::from(self.abs_diff(other) / *denom))
+                Some(Prop::from_as_prop(self.abs_diff(other) / *denom))
             }
         }
     }

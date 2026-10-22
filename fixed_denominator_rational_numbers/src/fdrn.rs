@@ -8,23 +8,13 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AlmostZero, Prop, Signed, SignedInteger, UFDRNum,
+    FromAsProp, Prop, Signed, SignedInteger, UFDRNum,
     debug::{AbsDiff, ApproxEq, PropDiff},
 };
 
 /// Fixed denominator rational number as an approximate representation of real numbers
 #[derive(Serialize, Deserialize, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct FDRNum(pub(crate) i128);
-
-impl AlmostZero for FDRNum {
-    fn almost_zero() -> Self {
-        FDRNum(1)
-    }
-
-    fn times_almost_zero(times: u128) -> Self {
-        FDRNum(times as i128)
-    }
-}
 
 impl Signed for FDRNum {}
 
@@ -114,7 +104,7 @@ impl PropDiff for FDRNum {
         if denom == FDRNum::ZERO {
             Some(Prop::ZERO)
         } else {
-            Some(Prop::from(self.abs_diff(other) / denom))
+            Some(Prop::from_as_prop(self.abs_diff(other) / denom))
         }
     }
 }

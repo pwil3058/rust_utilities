@@ -6,9 +6,9 @@ pub mod prop;
 pub mod ufdrn;
 pub mod useful_traits;
 
-pub use fdrn::FDRNum;
-pub use prop::Prop;
-pub use ufdrn::UFDRNum;
+pub use fdrn::*;
+pub use prop::*;
+pub use ufdrn::*;
 pub use useful_traits::*;
 
 #[cfg(test)]

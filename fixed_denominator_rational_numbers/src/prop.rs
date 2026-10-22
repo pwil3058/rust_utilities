@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Peter Williams <pwil3058@bigpond.net.au> <pwil3058@gmail.com>.
 
 use crate::debug::{AbsDiff, ApproxEq, PropDiff};
-use crate::{FDRNum, UFDRNum, UnsignedInteger};
+use crate::{AsProportion, FDRNum, UFDRNum, Unsigned, UnsignedInteger};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt;
@@ -20,11 +20,11 @@ impl Prop {
     /// Examples:
     ///
     /// ```
-    /// use fixed_denominator_rational_numbers::{Prop, debug::ApproxEq};
+    /// use fixed_denominator_rational_numbers::{Prop, debug::ApproxEq, FromAsProp};
     /// use approximately_equal::assert_approx_eq;
     ///
-    /// assert_eq!(Prop::from_fraction(1, 2), Prop::from(0.5));
-    /// assert_approx_eq!(Prop::from_fraction(3, 5), Prop::from(0.6), 1000);
+    /// assert_eq!(Prop::from_fraction(1, 2), Prop::from_as_prop(0.5));
+    /// assert_approx_eq!(Prop::from_fraction(3, 5), Prop::from_as_prop(0.6), 1000);
     /// ```
     pub fn from_fraction(enumerator: u64, denominator: u64) -> Self {
         debug_assert!(denominator >= enumerator);
@@ -99,57 +99,98 @@ impl From<[u64; 2]> for Prop {
     }
 }
 
-#[macro_export]
-macro_rules! impl_prop_to_from_float {
-    ($float:ty, $number:ty) => {
-        impl From<$float> for $number {
-            fn from(arg: $float) -> Self {
-                debug_assert!((0.0..=1.0).contains(&arg));
-                // NB: watch out for floating point not being proper reals
-                Self((arg * u64::MAX as $float) as u64)
-            }
-        }
-
-        impl From<$number> for $float {
-            fn from(arg: $number) -> Self {
-                arg.0 as $float / u64::MAX as $float
-            }
-        }
-    };
+pub trait FromAsProp<T: Sized> {
+    fn from_as_prop(value: T) -> Self;
 }
 
-impl IntoProp for f32 {}
+pub trait IntoAsProp<T: FromAsProp<Self>>: Sized {
+    fn into_as_prop(self) -> T {
+        T::from_as_prop(self)
+    }
+}
 
-impl IntoProp for f64 {}
+impl FromAsProp<f64> for Prop {
+    fn from_as_prop(arg: f64) -> Self {
+        debug_assert!((0.0..=1.0).contains(&arg));
+        Self((arg * u64::MAX as f64) as u64)
+    }
+}
+impl IntoAsProp<Prop> for f64 {}
 
-impl_prop_to_from_float!(f32, Prop);
-impl_prop_to_from_float!(f64, Prop);
+impl FromAsProp<Prop> for f64 {
+    fn from_as_prop(arg: Prop) -> Self {
+        arg.0 as f64 / u64::MAX as f64
+    }
+}
+impl IntoAsProp<f64> for Prop {}
+
+impl<U: AsProportion + UnsignedInteger + Debug> FromAsProp<Prop> for U {
+    /// Converts a Prop to a U as a proportion of U::MAX
+    ///
+    /// Examples:
+    ///
+    /// ```
+    /// use fixed_denominator_rational_numbers::{Prop, IntoAsProp, FromAsProp};
+    ///
+    /// assert_eq!(u8::from_as_prop(Prop::from_as_prop(0.5)), 128);
+    /// assert_eq!(u8::from_as_prop(Prop::from_as_prop(0.999)), u8::MAX);
+    /// assert_eq!(u8::from_as_prop(Prop::from_as_prop(0.998)), u8::MAX - 1);
+    /// assert_eq!(u8::MAX - 1, Prop::from_as_prop(0.998).into_as_prop());
+    /// ```
+    fn from_as_prop(prop: Prop) -> Self {
+        let dividend = prop.0 as u128 * U::ONE.into();
+        let divisor = u64::MAX as u128;
+        let val = (dividend + divisor / 2) / divisor;
+        U::try_from(val)
+            .map_err(|_| "programmer error")
+            .expect("Failed to convert Prop to U")
+    }
+}
+impl<U: AsProportion + UnsignedInteger> IntoAsProp<U> for Prop {}
+
+impl<U: AsProportion + UnsignedInteger> FromAsProp<U> for Prop {
+    /// Convert from an unsigned integer treated as a proportion.
+    ///
+    /// Examples:
+    ///
+    ///```
+    /// use fixed_denominator_rational_numbers::{Prop, IntoAsProp, FromAsProp};
+    ///
+    /// assert_eq!(Prop::from_as_prop(u8::MAX), Prop::ONE);
+    /// assert_eq!(Prop::from_as_prop(u8::MAX - 1), Prop::from_fraction(254, 255));
+    ///```
+    fn from_as_prop(unsigned: U) -> Self {
+        let dividend: u128 = unsigned.into() * Prop::ONE.0 as u128;
+        let divisor: u128 = U::ONE.into();
+        let val = (dividend + divisor / 2) / divisor;
+        Prop(val as u64)
+    }
+}
+impl<U: AsProportion + UnsignedInteger> IntoAsProp<Prop> for U {}
 
 #[macro_export]
-macro_rules! impl_to_from_number {
+macro_rules! impl_into_from_as_prop_number {
     ($number:ty, $core:ty, $proportion:ty) => {
-        impl From<$number> for $proportion {
+        impl FromAsProp<$number> for $proportion {
             #[allow(unused_comparisons)]
-            fn from(arg: $number) -> Self {
+            fn from_as_prop(arg: $number) -> Self {
                 debug_assert!(arg.0 >= 0 && arg.0 <= u64::MAX as $core);
                 Self(arg.0 as u64)
             }
         }
+        impl IntoAsProp<$proportion> for $number {}
 
-        impl From<$proportion> for $number {
-            fn from(arg: $proportion) -> Self {
+        impl FromAsProp<$proportion> for $number {
+            fn from_as_prop(arg: $proportion) -> Self {
                 Self(arg.0 as $core)
             }
         }
+        impl IntoAsProp<$number> for $proportion {}
     };
 }
 
-impl_to_from_number!(UFDRNum, u128, Prop);
-impl_to_from_number!(FDRNum, i128, Prop);
-
-impl IntoProp for UFDRNum {}
-
-impl IntoProp for FDRNum {}
+impl_into_from_as_prop_number!(UFDRNum, u128, Prop);
+impl_into_from_as_prop_number!(FDRNum, i128, Prop);
 
 #[macro_export]
 macro_rules! impl_unsigned_to_from_prop {
@@ -393,12 +434,12 @@ impl Mul<Prop> for UFDRNum {
     /// Examples:
     ///
     /// ```
-    /// use fixed_denominator_rational_numbers::{Prop, UFDRNum};
+    /// use fixed_denominator_rational_numbers::{Prop, UFDRNum, FromAsProp};
     /// use approximately_equal::assert_approx_eq;
     ///
     /// assert_eq!(UFDRNum::from(2.5) * Prop::ONE, UFDRNum::from(2.5));
     /// assert_eq!(UFDRNum::ONE * Prop::ZERO, UFDRNum::ZERO);
-    /// assert_eq!(UFDRNum::ONE * Prop::from(0.5), UFDRNum::from(0.5));
+    /// assert_eq!(UFDRNum::ONE * Prop::from_as_prop(0.5), UFDRNum::from(0.5));
     /// ```
     fn mul(self, rhs: Prop) -> Self {
         match rhs {

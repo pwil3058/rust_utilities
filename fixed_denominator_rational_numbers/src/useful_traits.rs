@@ -3,36 +3,68 @@
 use std::fmt::Debug;
 use std::ops::{Mul, Sub};
 
+pub trait AsProportion: Sized + Copy + PartialEq + PartialOrd + Debug {
+    const ONE: Self;
+    const ZERO: Self;
+
+    fn is_valid_proportion(&self) -> bool {
+        *self >= Self::ZERO && *self <= Self::ONE
+    }
+}
+
+impl AsProportion for f64 {
+    const ONE: Self = 1.0;
+    const ZERO: Self = 0.0;
+}
+
+impl AsProportion for u8 {
+    const ONE: Self = u8::MAX;
+    const ZERO: Self = 0;
+}
+
+impl AsProportion for u16 {
+    const ONE: Self = u16::MAX;
+    const ZERO: Self = 0;
+}
+
+impl AsProportion for u32 {
+    const ONE: Self = u32::MAX;
+    const ZERO: Self = 0;
+}
+
+impl AsProportion for u64 {
+    const ONE: Self = u64::MAX;
+    const ZERO: Self = 0;
+}
+
+pub trait FromU128: Copy + Into<u128> {
+    fn from_u128(value: u128) -> Self;
+}
+
 pub trait Unsigned: Copy + Debug {
     const MAX: Self;
-    const ZERO: Self;
-    const MIN: Self = Self::ZERO;
 }
-pub trait UnsignedInteger: Unsigned + Into<u128> {}
+
+pub trait UnsignedInteger: Unsigned + Into<u128> + TryFrom<u128> + Debug {}
 
 impl Unsigned for u8 {
     const MAX: Self = u8::MAX;
-    const ZERO: Self = 0;
 }
 
 impl Unsigned for u16 {
     const MAX: Self = u16::MAX;
-    const ZERO: Self = 0;
 }
 
 impl Unsigned for u32 {
     const MAX: Self = u32::MAX;
-    const ZERO: Self = 0;
 }
 
 impl Unsigned for u64 {
     const MAX: Self = u64::MAX;
-    const ZERO: Self = 0;
 }
 
 impl Unsigned for u128 {
     const MAX: Self = u128::MAX;
-    const ZERO: Self = 0;
 }
 
 impl UnsignedInteger for u8 {}
@@ -108,38 +140,3 @@ impl Float for f64 {
         i as Self
     }
 }
-
-// pub trait FromNumber<T: Copy + Sized>: Sized + Copy + Debug {
-//     fn from_number(number: T) -> Self;
-// }
-//
-// pub trait IntoNumber<T: Copy + Sized + FromNumber<Self>>: Sized + Copy + Debug {
-//     fn into_number(self) -> T {
-//         T::from_number(self)
-//     }
-// }
-
-pub trait AlmostZero {
-    fn almost_zero() -> Self;
-    fn times_almost_zero(times: u128) -> Self;
-}
-
-// pub trait ApproxEq: Copy + PartialEq + PartialOrd + Ord + AlmostZero + Sub<Output = Self> {
-//     fn approx_eq(&self, other: &Self, max_diff: Option<u128>) -> bool {
-//         if self.eq(other) {
-//             true
-//         } else {
-//             let max_diff = if let Some(max_diff) = max_diff {
-//                 Self::times_almost_zero(max_diff)
-//             } else {
-//                 Self::almost_zero()
-//             };
-//             let diff = if self >= other {
-//                 *self - *other
-//             } else {
-//                 *other - *self
-//             };
-//             diff <= max_diff
-//         }
-//     }
-// }
