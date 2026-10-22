@@ -37,10 +37,6 @@ impl AsProportion for u64 {
     const ZERO: Self = 0;
 }
 
-pub trait FromU128: Copy + Into<u128> {
-    fn from_u128(value: u128) -> Self;
-}
-
 pub trait Unsigned: Copy + Debug {
     const MAX: Self;
 }

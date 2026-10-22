@@ -9,7 +9,7 @@ use gcd::Gcd;
 use serde::{Deserialize, Serialize};
 
 use crate::debug::{AbsDiff, ApproxEq, PropDiff};
-use crate::{FDRNum, Float, FromAsProp, IntoAsProp, Prop, Unsigned, UnsignedInteger};
+use crate::{AsProportion, FDRNum, Float, FromAsProp, IntoAsProp, Prop, Unsigned, UnsignedInteger};
 
 /// Fixed denominator rational number as an approximate representation of real numbers
 #[derive(Serialize, Deserialize, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]

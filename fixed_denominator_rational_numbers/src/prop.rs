@@ -11,10 +11,12 @@ use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 #[derive(Serialize, Deserialize, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct Prop(pub(crate) u64);
 
-impl Prop {
-    pub const ZERO: Self = Self(0);
-    pub const ONE: Self = Self(u64::MAX);
+impl AsProportion for Prop {
+    const ZERO: Self = Self(0);
+    const ONE: Self = Self(u64::MAX);
+}
 
+impl Prop {
     /// Create from a fraction
     ///
     /// Examples:
@@ -154,7 +156,7 @@ impl<U: AsProportion + UnsignedInteger> FromAsProp<U> for Prop {
     /// Examples:
     ///
     ///```
-    /// use fixed_denominator_rational_numbers::{Prop, IntoAsProp, FromAsProp};
+    /// use fixed_denominator_rational_numbers::{Prop, IntoAsProp, FromAsProp, AsProportion};
     ///
     /// assert_eq!(Prop::from_as_prop(u8::MAX), Prop::ONE);
     /// assert_eq!(Prop::from_as_prop(u8::MAX - 1), Prop::from_fraction(254, 255));
@@ -314,7 +316,7 @@ impl Sub for Prop {
     /// Examples:
     ///
     /// ```
-    /// use fixed_denominator_rational_numbers::Prop;
+    /// use fixed_denominator_rational_numbers::{AsProportion, Prop};
     /// use approximately_equal::assert_approx_eq;
     ///
     /// assert_eq!(Prop::from_fraction(1, 2) - Prop::from_fraction(1, 4), Prop::from_fraction(1, 4));
@@ -393,7 +395,7 @@ impl Mul<Prop> for UFDRNum {
     /// Examples:
     ///
     /// ```
-    /// use fixed_denominator_rational_numbers::{Prop, UFDRNum, FromAsProp};
+    /// use fixed_denominator_rational_numbers::{Prop, UFDRNum, FromAsProp, AsProportion};
     /// use approximately_equal::assert_approx_eq;
     ///
     /// assert_eq!(UFDRNum::from(2.5) * Prop::ONE, UFDRNum::from(2.5));

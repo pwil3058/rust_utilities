@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Peter Williams <pwil3058@bigpond.net.au> <pwil3058@gmail.com>.
 use std::{cmp::PartialOrd, ops::Sub};
 
-use crate::{IntoAsProp, prop::Prop};
+use crate::{AsProportion, IntoAsProp, Prop};
 
 pub trait AbsDiff: Copy + Sized + PartialOrd + Sub<Output = Self> {
     fn abs_diff(&self, other: &Self) -> Self {

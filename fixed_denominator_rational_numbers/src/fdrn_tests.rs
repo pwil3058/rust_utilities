@@ -2,7 +2,7 @@
 
 use approximately_equal::assert_approx_eq;
 
-use crate::{FDRNum, FromAsProp, IntoAsProp, Prop, UFDRNum, debug::ApproxEq};
+use crate::{AsProportion, FDRNum, FromAsProp, IntoAsProp, Prop, UFDRNum, debug::ApproxEq};
 
 #[test]
 fn sqrt_2() {

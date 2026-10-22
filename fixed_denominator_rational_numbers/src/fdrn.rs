@@ -8,7 +8,7 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    FromAsProp, Prop, Signed, SignedInteger, UFDRNum,
+    AsProportion, FromAsProp, Prop, Signed, SignedInteger, UFDRNum,
     debug::{AbsDiff, ApproxEq, PropDiff},
 };
 
