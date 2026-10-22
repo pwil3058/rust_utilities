@@ -282,6 +282,12 @@ impl<S: SignedInteger> Mul<S> for FDRNum {
     }
 }
 
+impl<S: SignedInteger> MulAssign<S> for FDRNum {
+    fn mul_assign(&mut self, rhs: S) {
+        *self = *self * rhs;
+    }
+}
+
 // Div
 impl Div for FDRNum {
     type Output = Self;
@@ -335,6 +341,12 @@ impl<S: SignedInteger> Div<S> for FDRNum {
     }
 }
 
+impl<S: SignedInteger> DivAssign<S> for FDRNum {
+    fn div_assign(&mut self, rhs: S) {
+        *self = *self / rhs;
+    }
+}
+
 // Rem
 impl Rem for FDRNum {
     type Output = Self;
@@ -356,6 +368,32 @@ impl Rem for FDRNum {
 
 impl RemAssign for FDRNum {
     fn rem_assign(&mut self, rhs: Self) {
+        *self = *self % rhs;
+    }
+}
+
+impl<S: SignedInteger> Rem<S> for FDRNum {
+    type Output = Self;
+
+    /// Remainder of an FDRnum after division by an signed integer
+    ///
+    /// Example:
+    ///
+    /// ```
+    /// use fixed_denominator_rational_numbers::{FDRNum, debug::ApproxEq};
+    /// use approximately_equal::assert_approx_eq;
+    ///
+    /// assert_approx_eq!(FDRNum::ONE / 4, FDRNum::from(0.25), 4);
+    /// ```
+    fn rem(self, rhs: S) -> Self::Output {
+        // N.B. Do this separately to avoid ambiguity with U::into::<UFDRNum>().
+        let rhs: i128 = rhs.into();
+        Self(self.0 % rhs)
+    }
+}
+
+impl<S: SignedInteger> RemAssign<S> for FDRNum {
+    fn rem_assign(&mut self, rhs: S) {
         *self = *self % rhs;
     }
 }
