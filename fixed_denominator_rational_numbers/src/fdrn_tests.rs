@@ -96,7 +96,7 @@ fn composition() {
         for b in &[0.001_f64] {
             let second = Prop::from(*b);
             let left = UFDRNum::ONE * 3u8 - (UFDRNum::ONE * 2u8 - second) * prop;
-            let right = UFDRNum::ONE * 3u8 + second * prop - prop * 2;
+            let right = UFDRNum::ONE * 3u8 + second * prop - prop * 2u8;
             assert!(left > right);
             assert_approx_eq!(left, right);
         }
@@ -126,11 +126,11 @@ fn prop_mul_u8() {
 #[test]
 fn prop_div() {
     for [a, b] in &[[0.0f64, 0.3], [0.024, 0.5], [0.18, 0.5], [0.004, 0.6]] {
-        let expected = Prop::from(a / b);
+        let expected = UFDRNum::from(a / b);
         let result = Prop::from(*a) / Prop::from(*b);
         assert_approx_eq!(result, expected);
         assert_approx_eq!(f64::from(result), (a / b));
-        let go_back = result * Prop::from(*b);
+        let go_back: Prop = (result * UFDRNum::from(*b)).into();
         assert_approx_eq!(go_back, Prop::from(*a));
     }
 }
@@ -163,7 +163,7 @@ fn prop_sub() {
 
 #[test]
 fn from_fraction() {
-    assert_eq!(Prop::from([1, 2]), Prop::ONE / 2u8);
+    assert_eq!(Prop::from([1, 2]), Prop::from(0.5));
 }
 
 #[test]
