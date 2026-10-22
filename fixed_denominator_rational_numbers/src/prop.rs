@@ -111,6 +111,13 @@ pub trait IntoAsProp<T: FromAsProp<Self>>: Sized {
     }
 }
 
+impl FromAsProp<Prop> for Prop {
+    fn from_as_prop(arg: Prop) -> Self {
+        arg
+    }
+}
+impl IntoAsProp<Prop> for Prop {}
+
 impl FromAsProp<f64> for Prop {
     fn from_as_prop(arg: f64) -> Self {
         debug_assert!((0.0..=1.0).contains(&arg));
