@@ -1,7 +1,9 @@
 // Copyright (c) 2026 Peter Williams <pwil3058@bigpond.net.au> <pwil3058@gmail.com>.
 
 use crate::debug::{AbsDiff, ApproxEq, PropDiff};
-use crate::{AsProportion, FDRNum, UFDRNum, Unsigned, UnsignedInteger};
+use crate::{
+    AsProportion, FDRNum, FromAsProp, IntoAsProp, UFDRNum, UnsignedInteger, impl_into_as_prop,
+};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt;
@@ -12,8 +14,8 @@ use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 pub struct Prop(pub(crate) u64);
 
 impl AsProportion for Prop {
-    const ZERO: Self = Self(0);
     const ONE: Self = Self(u64::MAX);
+    const ZERO: Self = Self(0);
 }
 
 impl Prop {
@@ -55,6 +57,7 @@ impl Prop {
     }
 }
 
+// Debug stuff
 impl AbsDiff for Prop {}
 
 impl PropDiff for Prop {
@@ -89,34 +92,19 @@ impl fmt::Display for Prop {
     }
 }
 
-pub trait IntoProp: Sized + Copy + Into<Prop> {
-    fn into_prop(self) -> Prop {
-        self.into()
-    }
-}
-
+// Conversions
 impl From<[u64; 2]> for Prop {
     fn from(fraction: [u64; 2]) -> Self {
         Self::from_fraction(fraction[0], fraction[1])
     }
 }
 
-pub trait FromAsProp<T: Sized> {
-    fn from_as_prop(value: T) -> Self;
-}
-
-pub trait IntoAsProp<T: FromAsProp<Self>>: Sized {
-    fn into_as_prop(self) -> T {
-        T::from_as_prop(self)
-    }
-}
-
 impl FromAsProp<Prop> for Prop {
-    fn from_as_prop(arg: Prop) -> Self {
-        arg
+    fn from_as_prop(prop: Prop) -> Self {
+        prop
     }
 }
-impl IntoAsProp<Prop> for Prop {}
+impl_into_as_prop!(Prop, Prop);
 
 impl FromAsProp<f64> for Prop {
     fn from_as_prop(arg: f64) -> Self {
@@ -124,14 +112,14 @@ impl FromAsProp<f64> for Prop {
         Self((arg * u64::MAX as f64) as u64)
     }
 }
-impl IntoAsProp<Prop> for f64 {}
+impl_into_as_prop!(Prop, f64);
 
 impl FromAsProp<Prop> for f64 {
     fn from_as_prop(arg: Prop) -> Self {
         arg.0 as f64 / u64::MAX as f64
     }
 }
-impl IntoAsProp<f64> for Prop {}
+impl_into_as_prop!(f64, Prop);
 
 impl<U: AsProportion + UnsignedInteger + Debug> FromAsProp<Prop> for U {
     /// Converts a Prop to a U as a proportion of U::MAX
@@ -155,7 +143,12 @@ impl<U: AsProportion + UnsignedInteger + Debug> FromAsProp<Prop> for U {
             .expect("Failed to convert Prop to U")
     }
 }
-impl<U: AsProportion + UnsignedInteger> IntoAsProp<U> for Prop {}
+
+impl<U: AsProportion + UnsignedInteger> IntoAsProp<U> for Prop {
+    fn into_as_prop(self) -> U {
+        U::from_as_prop(self)
+    }
+}
 
 impl<U: AsProportion + UnsignedInteger> FromAsProp<U> for Prop {
     /// Convert from an unsigned integer treated as a proportion.
@@ -175,11 +168,16 @@ impl<U: AsProportion + UnsignedInteger> FromAsProp<U> for Prop {
         Prop(val as u64)
     }
 }
-impl<U: AsProportion + UnsignedInteger> IntoAsProp<Prop> for U {}
+
+impl<U: AsProportion + UnsignedInteger> IntoAsProp<Prop> for U {
+    fn into_as_prop(self) -> Prop {
+        Prop::from_as_prop(self)
+    }
+}
 
 #[macro_export]
 macro_rules! impl_into_from_as_prop_number {
-    ($number:ty, $core:ty, $proportion:ty) => {
+    ($number:ident, $core:ty, $proportion:ident) => {
         impl FromAsProp<$number> for $proportion {
             #[allow(unused_comparisons)]
             fn from_as_prop(arg: $number) -> Self {
@@ -187,14 +185,14 @@ macro_rules! impl_into_from_as_prop_number {
                 Self(arg.0 as u64)
             }
         }
-        impl IntoAsProp<$proportion> for $number {}
+        impl_into_as_prop!($proportion, $number);
 
         impl FromAsProp<$proportion> for $number {
             fn from_as_prop(arg: $proportion) -> Self {
                 Self(arg.0 as $core)
             }
         }
-        impl IntoAsProp<$number> for $proportion {}
+        impl_into_as_prop!($number, $proportion);
     };
 }
 

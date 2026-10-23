@@ -3,6 +3,25 @@
 use std::fmt::Debug;
 use std::ops::{Mul, Sub};
 
+pub trait FromAsProp<T: Sized> {
+    fn from_as_prop(value: T) -> Self;
+}
+
+pub trait IntoAsProp<T: Sized> {
+    fn into_as_prop(self) -> T;
+}
+
+#[macro_export]
+macro_rules! impl_into_as_prop {
+    ($into_type:ident, $for_type:ty) => {
+        impl IntoAsProp<$into_type> for $for_type {
+            fn into_as_prop(self) -> $into_type {
+                $into_type::from_as_prop(self)
+            }
+        }
+    };
+}
+
 pub trait AsProportion: Sized + Copy + PartialEq + PartialOrd + Debug {
     const ONE: Self;
     const ZERO: Self;
@@ -37,40 +56,23 @@ impl AsProportion for u64 {
     const ZERO: Self = 0;
 }
 
-pub trait Unsigned: Copy + Debug {
-    const MAX: Self;
-}
+pub trait Unsigned: Copy + Debug {}
+pub trait UnsignedInteger: Unsigned + Into<u128> + TryFrom<u128> {}
 
-pub trait UnsignedInteger: Unsigned + Into<u128> + TryFrom<u128> + Debug {}
-
-impl Unsigned for u8 {
-    const MAX: Self = u8::MAX;
-}
-
-impl Unsigned for u16 {
-    const MAX: Self = u16::MAX;
-}
-
-impl Unsigned for u32 {
-    const MAX: Self = u32::MAX;
-}
-
-impl Unsigned for u64 {
-    const MAX: Self = u64::MAX;
-}
-
-impl Unsigned for u128 {
-    const MAX: Self = u128::MAX;
-}
+impl Unsigned for u8 {}
+impl Unsigned for u16 {}
+impl Unsigned for u32 {}
+impl Unsigned for u64 {}
+impl Unsigned for u128 {}
 
 impl UnsignedInteger for u8 {}
 impl UnsignedInteger for u16 {}
 impl UnsignedInteger for u32 {}
 impl UnsignedInteger for u64 {}
-impl UnsignedInteger for u128 {}
+// impl UnsignedInteger for u128 {}
 
 pub trait Signed: Copy + Debug {}
-pub trait SignedInteger: Signed + Into<i128> {}
+pub trait SignedInteger: Signed + Into<i128> + TryFrom<i128> {}
 
 impl Signed for i8 {}
 impl Signed for i16 {}
@@ -81,10 +83,10 @@ impl SignedInteger for i8 {}
 impl SignedInteger for i16 {}
 impl SignedInteger for i32 {}
 impl SignedInteger for i64 {}
-impl SignedInteger for i128 {}
+// impl SignedInteger for i128 {}
 
 pub trait Float:
-    Copy + Sized + Mul<Output = Self> + Sub<Output = Self> + From<f32> + Debug
+    Signed + Sized + Mul<Output = Self> + Sub<Output = Self> + From<f32> + Debug
 {
     fn is_negative(&self) -> bool;
     fn into_u128(self) -> u128;
@@ -92,6 +94,9 @@ pub trait Float:
     fn from_u128(u: u128) -> Self;
     fn from_i128(i: i128) -> Self;
 }
+
+impl Signed for f32 {}
+impl Signed for f64 {}
 
 impl Float for f32 {
     fn is_negative(&self) -> bool {
