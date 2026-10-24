@@ -56,8 +56,24 @@ impl AsProportion for u64 {
     const ZERO: Self = 0;
 }
 
+pub trait IntoFromRawU128: Into<u128> + TryFrom<u128> {
+    /// Raw from an u128 value (will panic if value is greater than the maximum value of Self)
+    fn from_u128(value: u128) -> Self {
+        value
+            .try_into()
+            .map_err(|_| "whatever")
+            .expect("Value is greater than the maximum value of Self")
+    }
+    /// Into a raw u128 value
+    fn into_u128(self) -> u128 {
+        self.into()
+    }
+}
+
+impl<U: UnsignedInteger> IntoFromRawU128 for U {}
+
 pub trait Unsigned: Copy + Debug {}
-pub trait UnsignedInteger: Unsigned + Into<u128> + TryFrom<u128> {}
+pub trait UnsignedInteger: Unsigned + IntoFromRawU128 {}
 
 impl Unsigned for u8 {}
 impl Unsigned for u16 {}
@@ -70,6 +86,26 @@ impl UnsignedInteger for u16 {}
 impl UnsignedInteger for u32 {}
 impl UnsignedInteger for u64 {}
 // impl UnsignedInteger for u128 {}
+
+pub trait IntoFromRawI128 {
+    /// Raw from an i128 value (will panic if value is greater than the maximum value of Self)
+    fn from_i128(value: i128) -> Self;
+    /// Into a raw u128 value
+    fn into_i128(self) -> i128;
+}
+
+impl<S: SignedInteger> IntoFromRawI128 for S {
+    fn from_i128(value: i128) -> Self {
+        value
+            .try_into()
+            .map_err(|_| "whatever")
+            .expect("Value is greater than the maximum value of u8")
+    }
+
+    fn into_i128(self) -> i128 {
+        self.into()
+    }
+}
 
 pub trait Signed: Copy + Debug {}
 pub trait SignedInteger: Signed + Into<i128> + TryFrom<i128> {}

@@ -174,3 +174,51 @@ fn from_unsigned() {
     assert_eq!(Prop::from_as_prop(u32::MAX), Prop::ONE);
     assert_eq!(Prop::from_as_prop(u8::MAX / 2), Prop::from([127, 255]));
 }
+
+#[test]
+fn from_ufdrn_to_prop() {
+    assert_eq!(
+        Prop::from_fraction(1, 2),
+        UFDRNum::from_rational_num(1, 2).into_as_prop()
+    );
+    assert_eq!(
+        Prop::from_fraction(1, 5),
+        UFDRNum::from_rational_num(1, 5).into_as_prop()
+    );
+}
+
+#[test]
+fn from_prop_to_ufdrn() {
+    assert_eq!(
+        UFDRNum::from_rational_num(1, 2),
+        Prop::from_fraction(1, 2).into_as_prop()
+    );
+    assert_eq!(
+        UFDRNum::from_rational_num(2, 5),
+        Prop::from_fraction(2, 5).into_as_prop()
+    );
+}
+
+#[test]
+fn from_fdrn_to_prop() {
+    assert_eq!(
+        Prop::from_fraction(1, 2),
+        FDRNum::from_rational_num(1, 2).into_as_prop()
+    );
+    assert_eq!(
+        Prop::from_fraction(1, 5),
+        FDRNum::from_rational_num(1, 5).into_as_prop()
+    );
+}
+
+#[test]
+fn from_prop_to_fdrn() {
+    assert_eq!(
+        FDRNum::from_rational_num(1, 2),
+        Prop::from_fraction(1, 2).into_as_prop()
+    );
+    assert_eq!(
+        FDRNum::from_rational_num(2, 5),
+        Prop::from_fraction(2, 5).into_as_prop()
+    );
+}

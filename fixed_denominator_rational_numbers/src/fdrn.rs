@@ -55,15 +55,18 @@ impl FDRNum {
     /// assert_approx_eq!(FDRNum::from_rational_num(-5, 2), FDRNum::from(-2.5_f64), 2);
     /// assert_eq!(FDRNum::from_rational_num(17, 17), FDRNum::ONE);
     /// assert_approx_eq!(FDRNum::from_rational_num(5, 10), FDRNum::ONE / 2, 2);
-    /// assert_eq!(FDRNum::from_rational_num(u64::MAX as i128 * 2, u64::MAX as u128), FDRNum::ONE * 2);
+    /// assert_eq!(FDRNum::from_rational_num(u64::MAX as i128 * 2, u64::MAX as i128), FDRNum::ONE * 2);
     /// ```
-    pub fn from_rational_num(enumerator: i128, denominator: u128) -> Self {
+    pub fn from_rational_num(enumerator: i128, denominator: i128) -> Self {
         if enumerator == 0 {
             return Self::ZERO;
         }
-        let result = UFDRNum::from_rational_num(enumerator.abs().cast_unsigned(), denominator);
-        if enumerator.is_negative() {
-            Self(-(result.0.cast_signed()))
+        let result = UFDRNum::from_rational_num(
+            enumerator.abs().cast_unsigned(),
+            denominator.abs().cast_unsigned(),
+        );
+        if enumerator.is_negative() != denominator.is_negative() {
+            Self(result.0.cast_signed().neg())
         } else {
             result.into()
         }
