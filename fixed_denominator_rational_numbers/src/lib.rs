@@ -11,5 +11,19 @@ pub use prop::*;
 pub use ufdrn::*;
 pub use useful_traits::*;
 
+pub trait NumberConstants {
+    const ZERO: Self;
+    const ONE: Self;
+    const TWO: Self;
+    const THREE: Self;
+
+    const SQRT_2: Self;
+    const SQRT_3: Self;
+}
+
+pub trait TrigConstants {
+    const COS_45: Self;
+}
+
 #[cfg(test)]
-mod fdrn_tests;
+mod tests;

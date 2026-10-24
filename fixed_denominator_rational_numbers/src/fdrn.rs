@@ -1,14 +1,14 @@
 // Copyright (c) 2026 Peter Williams <pwil3058@bigpond.net.au> <pwil3058@gmail.com>.
 
+use serde::{Deserialize, Serialize};
+use std::ops::Neg;
 use std::{
     fmt::{self, Debug, Formatter},
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Rem, RemAssign, Sub, SubAssign},
 };
 
-use serde::{Deserialize, Serialize};
-
 use crate::{
-    AsProportion, FromAsProp, Prop, Signed, SignedInteger, UFDRNum,
+    AsProportion, FromAsProp, NumberConstants, Prop, Signed, SignedInteger, UFDRNum,
     debug::{AbsDiff, ApproxEq, PropDiff},
 };
 
@@ -18,12 +18,19 @@ pub struct FDRNum(pub(crate) i128);
 
 impl Signed for FDRNum {}
 
+impl NumberConstants for FDRNum {
+    const ZERO: Self = Self(0);
+    const ONE: Self = Self(Self::DENOMINATOR);
+    const TWO: Self = Self(Self::DENOMINATOR * 2);
+    const THREE: Self = Self(Self::DENOMINATOR * 3);
+
+    const SQRT_2: Self = FDRNum(0x16A09E667F3BCC906);
+    const SQRT_3: Self = FDRNum(0x1BB67AE8584CAA73A);
+}
+
 impl FDRNum {
     pub const DENOMINATOR: i128 = u64::MAX as i128;
-    pub const ZERO: Self = Self(0);
-    pub const ONE: Self = Self(Self::DENOMINATOR);
     pub const MINUS_ONE: Self = Self(-Self::DENOMINATOR);
-    pub const SQRT_2: Self = FDRNum(0x16A09E667F3BCC906);
 
     pub fn is_negative(self) -> bool {
         self.0.is_negative()
@@ -41,7 +48,7 @@ impl FDRNum {
     ///
     /// Example:
     /// ```
-    /// use fixed_denominator_rational_numbers::{FDRNum, debug::ApproxEq};
+    /// use fixed_denominator_rational_numbers::{self::*, debug::ApproxEq};
     /// use approximately_equal::assert_approx_eq;
     ///
     /// assert_eq!(FDRNum::from_rational_num(4, 2), FDRNum::ONE * 2);
@@ -66,7 +73,7 @@ impl FDRNum {
     ///
     /// Example:
     /// ```
-    /// use fixed_denominator_rational_numbers::{FDRNum, debug::ApproxEq};
+    /// use fixed_denominator_rational_numbers::{self::*, debug::ApproxEq};
     /// use approximately_equal::assert_approx_eq;
     ///
     /// let four: FDRNum = FDRNum::ONE * 4;
@@ -118,7 +125,7 @@ impl From<UFDRNum> for FDRNum {
     /// Example:
     ///
     /// ```
-    /// use fixed_denominator_rational_numbers::{FDRNum, UFDRNum};
+    /// use fixed_denominator_rational_numbers::{FDRNum, UFDRNum, NumberConstants};
     ///
     /// assert_eq!(FDRNum::ONE, UFDRNum::ONE.into());
     /// assert_eq!(FDRNum::ONE / 2, (UFDRNum::ONE / 2u8).into());
@@ -134,7 +141,7 @@ impl<S: SignedInteger> From<S> for FDRNum {
     ///
     /// Example:
     /// ```
-    /// use fixed_denominator_rational_numbers::FDRNum;
+    /// use fixed_denominator_rational_numbers::*;
     ///
     /// assert_eq!(FDRNum::from(1_i32), FDRNum::ONE);
     /// assert_eq!(FDRNum::from(0_i64), FDRNum::ZERO);
@@ -151,7 +158,7 @@ impl From<f64> for FDRNum {
     /// Example:
     ///
     /// ```
-    /// use fixed_denominator_rational_numbers::{Float,FDRNum, debug::ApproxEq};
+    /// use fixed_denominator_rational_numbers::{Float,FDRNum, debug::ApproxEq, NumberConstants};
     /// use approximately_equal::assert_approx_eq;
     ///
     /// assert_approx_eq!(FDRNum::from(1.0), FDRNum::ONE);
@@ -179,7 +186,7 @@ impl Add for FDRNum {
     /// Example:
     ///
     /// ```
-    /// use fixed_denominator_rational_numbers::{FDRNum, debug::ApproxEq};
+    /// use fixed_denominator_rational_numbers::{FDRNum, debug::ApproxEq, NumberConstants};
     /// use approximately_equal::assert_approx_eq;
     ///
     /// assert_eq!(FDRNum::ONE * 2 + FDRNum::ONE, FDRNum::ONE * 3);
@@ -205,7 +212,7 @@ impl Sub for FDRNum {
     /// Example:
     ///
     /// ```
-    /// use fixed_denominator_rational_numbers::{FDRNum};
+    /// use fixed_denominator_rational_numbers::*;
     ///
     /// assert_eq!(FDRNum::ONE * 2 - FDRNum::ONE, FDRNum::ONE);
     /// assert_eq!(FDRNum::from(7.5_f64) - FDRNum::from(5.2_f64), FDRNum::from(2.3_f64));
@@ -230,7 +237,7 @@ impl Mul for FDRNum {
     /// Example:
     ///
     /// ```
-    /// use fixed_denominator_rational_numbers::{FDRNum, debug::ApproxEq};
+    /// use fixed_denominator_rational_numbers::{self::*, debug::ApproxEq};
     /// use approximately_equal::assert_approx_eq;
     ///
     /// assert_approx_eq!(FDRNum::from(0.5_f64) * FDRNum::from(2), FDRNum::ONE);
@@ -260,7 +267,7 @@ impl<S: SignedInteger> Mul<S> for FDRNum {
     /// Example:
     ///
     /// ```
-    /// use fixed_denominator_rational_numbers::FDRNum;
+    /// use fixed_denominator_rational_numbers::*;
     ///
     /// assert_eq!(FDRNum::ONE * 5, FDRNum::from(5_i32));
     /// assert_eq!(FDRNum::ONE * -5, FDRNum::from(-5_i32));
@@ -319,7 +326,7 @@ impl<S: SignedInteger> Div<S> for FDRNum {
     /// Example:
     ///
     /// ```
-    /// use fixed_denominator_rational_numbers::{FDRNum, debug::ApproxEq};
+    /// use fixed_denominator_rational_numbers::{FDRNum, debug::ApproxEq, NumberConstants};
     /// use approximately_equal::assert_approx_eq;
     ///
     /// assert_approx_eq!(FDRNum::ONE / 4, FDRNum::from(0.25), 4);
@@ -346,7 +353,7 @@ impl Rem for FDRNum {
     /// Example:
     ///
     /// ```
-    /// use fixed_denominator_rational_numbers::FDRNum;
+    /// use fixed_denominator_rational_numbers::*;
     ///
     /// assert_eq!(FDRNum::ONE % (FDRNum::ONE * 4), FDRNum::ONE);
     /// assert_eq!((FDRNum::ONE * 5) % (FDRNum::ONE * 4), FDRNum::ONE);
@@ -370,7 +377,7 @@ impl<S: SignedInteger> Rem<S> for FDRNum {
     /// Example:
     ///
     /// ```
-    /// use fixed_denominator_rational_numbers::{FDRNum, debug::ApproxEq};
+    /// use fixed_denominator_rational_numbers::{self::*, debug::ApproxEq};
     /// use approximately_equal::assert_approx_eq;
     ///
     /// assert_approx_eq!(FDRNum::ONE / 4, FDRNum::from(0.25), 4);
@@ -385,5 +392,13 @@ impl<S: SignedInteger> Rem<S> for FDRNum {
 impl<S: SignedInteger> RemAssign<S> for FDRNum {
     fn rem_assign(&mut self, rhs: S) {
         *self = *self % rhs;
+    }
+}
+
+impl Neg for FDRNum {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        Self(self.0.neg())
     }
 }

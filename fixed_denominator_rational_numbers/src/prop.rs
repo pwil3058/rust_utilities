@@ -2,7 +2,8 @@
 
 use crate::debug::{AbsDiff, ApproxEq, PropDiff};
 use crate::{
-    AsProportion, FDRNum, FromAsProp, IntoAsProp, UFDRNum, UnsignedInteger, impl_into_as_prop,
+    AsProportion, FDRNum, FromAsProp, IntoAsProp, NumberConstants, UFDRNum, UnsignedInteger,
+    impl_into_as_prop,
 };
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -232,7 +233,7 @@ impl<U: UnsignedInteger> Mul<U> for Prop {
     /// Examples:
     ///
     /// ```
-    /// use fixed_denominator_rational_numbers::{Prop, debug::ApproxEq, UFDRNum};
+    /// use fixed_denominator_rational_numbers::{self::*, debug::ApproxEq};
     /// use approximately_equal::assert_approx_eq;
     ///
     /// assert_approx_eq!(Prop::from_fraction(1, 2) * 2u32, UFDRNum::ONE);
@@ -252,7 +253,7 @@ impl Div for Prop {
     /// Examples:
     ///
     /// ```
-    /// use fixed_denominator_rational_numbers::{Prop, debug::ApproxEq, UFDRNum};
+    /// use fixed_denominator_rational_numbers::{self::*, debug::ApproxEq};
     /// use approximately_equal::assert_approx_eq;
     ///
     /// assert_approx_eq!(Prop::from_fraction(1, 2) / Prop::from_fraction(1,2) , UFDRNum::ONE);
@@ -276,7 +277,7 @@ impl<U: UnsignedInteger> Div<U> for Prop {
     /// Examples:
     ///
     /// ```
-    /// use fixed_denominator_rational_numbers::Prop;
+    /// use fixed_denominator_rational_numbers::*;
     ///
     /// assert_eq!(Prop::from_fraction(1, 2) / 2u32, Prop::from_fraction(1, 4));
     /// assert_eq!(Prop::from_fraction(3, 5) / 2u8, Prop::from_fraction(3, 10));
@@ -301,7 +302,7 @@ impl Add for Prop {
     /// Examples:
     ///
     /// ```
-    /// use fixed_denominator_rational_numbers::{Prop, UFDRNum, debug::ApproxEq};
+    /// use fixed_denominator_rational_numbers::{self::*, debug::ApproxEq};
     /// use approximately_equal::assert_approx_eq;
     ///
     /// assert_eq!(Prop::from_fraction(1, 2) + Prop::from_fraction(1, 4), UFDRNum::from(0.75));
@@ -321,7 +322,7 @@ impl Sub for Prop {
     /// Examples:
     ///
     /// ```
-    /// use fixed_denominator_rational_numbers::{AsProportion, Prop};
+    /// use fixed_denominator_rational_numbers::*;
     /// use approximately_equal::assert_approx_eq;
     ///
     /// assert_eq!(Prop::from_fraction(1, 2) - Prop::from_fraction(1, 4), Prop::from_fraction(1, 4));
@@ -400,7 +401,7 @@ impl Mul<Prop> for UFDRNum {
     /// Examples:
     ///
     /// ```
-    /// use fixed_denominator_rational_numbers::{Prop, UFDRNum, FromAsProp, AsProportion};
+    /// use fixed_denominator_rational_numbers::*;
     /// use approximately_equal::assert_approx_eq;
     ///
     /// assert_eq!(UFDRNum::from(2.5) * Prop::ONE, UFDRNum::from(2.5));

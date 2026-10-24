@@ -3,13 +3,18 @@
 use std::cmp::Ordering;
 use std::fmt;
 use std::fmt::{Debug, Formatter};
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Rem, RemAssign, Sub, SubAssign};
+use std::ops::{
+    Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, RemAssign, Sub, SubAssign,
+};
 
 use gcd::Gcd;
 use serde::{Deserialize, Serialize};
 
 use crate::debug::{AbsDiff, ApproxEq, PropDiff};
-use crate::{AsProportion, FDRNum, Float, FromAsProp, IntoAsProp, Prop, Unsigned, UnsignedInteger};
+use crate::{
+    AsProportion, FDRNum, Float, FromAsProp, IntoAsProp, NumberConstants, Prop, Unsigned,
+    UnsignedInteger,
+};
 
 /// Fixed denominator rational number as an approximate representation of real numbers
 #[derive(Serialize, Deserialize, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
@@ -17,11 +22,18 @@ pub struct UFDRNum(pub(crate) u128);
 
 impl Unsigned for UFDRNum {}
 
+impl NumberConstants for UFDRNum {
+    const ZERO: Self = Self(0);
+    const ONE: Self = Self(Self::DENOMINATOR);
+    const TWO: Self = Self(Self::DENOMINATOR * 2);
+    const THREE: Self = Self(Self::DENOMINATOR * 3);
+
+    const SQRT_2: Self = UFDRNum(0x16A09E667F3BCC906);
+    const SQRT_3: Self = UFDRNum(0x1BB67AE8584CAA73A);
+}
+
 impl UFDRNum {
     pub const DENOMINATOR: u128 = u64::MAX as u128;
-    pub const ZERO: Self = Self(0);
-    pub const ONE: Self = Self(Self::DENOMINATOR);
-    pub const SQRT_2: Self = UFDRNum(0x16A09E667F3BCC906);
 
     pub fn is_proportion(self) -> bool {
         self <= Self::ONE
@@ -31,7 +43,7 @@ impl UFDRNum {
     ///
     /// Example:
     /// ```
-    /// use fixed_denominator_rational_numbers::{UFDRNum, debug::ApproxEq};
+    /// use fixed_denominator_rational_numbers::{self::*, debug::ApproxEq};
     /// use approximately_equal::assert_approx_eq;
     ///
     /// assert_eq!(UFDRNum::from_rational_num(4, 2), UFDRNum::ONE * 2_u8);
@@ -69,7 +81,7 @@ impl UFDRNum {
     ///
     /// Example:
     /// ```
-    /// use fixed_denominator_rational_numbers::{UFDRNum, debug::ApproxEq};
+    /// use fixed_denominator_rational_numbers::{self::*, debug::ApproxEq};
     /// use approximately_equal::assert_approx_eq;
     ///
     /// let four: UFDRNum = UFDRNum::ONE * 4_u8;
@@ -131,7 +143,7 @@ impl<U: UnsignedInteger> From<U> for UFDRNum {
     ///
     /// Example:
     /// ```
-    /// use fixed_denominator_rational_numbers::UFDRNum;
+    /// use fixed_denominator_rational_numbers::*;
     ///
     /// assert_eq!(UFDRNum::from(1_u32), UFDRNum::ONE);
     /// assert_eq!(UFDRNum::from(0_u64), UFDRNum::ZERO);
@@ -148,7 +160,7 @@ impl From<f64> for UFDRNum {
     /// Example:
     ///
     /// ```
-    /// use fixed_denominator_rational_numbers::{Float,UFDRNum, debug::ApproxEq};
+    /// use fixed_denominator_rational_numbers::{self::*, debug::ApproxEq};
     /// use approximately_equal::assert_approx_eq;
     ///
     /// assert_approx_eq!(UFDRNum::from(1.0), UFDRNum::ONE);
@@ -176,7 +188,7 @@ impl Add for UFDRNum {
     /// Example:
     ///
     /// ```
-    /// use fixed_denominator_rational_numbers::{UFDRNum, debug::ApproxEq};
+    /// use fixed_denominator_rational_numbers::{self::*, debug::ApproxEq};
     /// use approximately_equal::assert_approx_eq;
     ///
     /// assert_eq!(UFDRNum::from(2u8) + UFDRNum::ONE, UFDRNum::from(3u8));
@@ -202,7 +214,7 @@ impl Sub for UFDRNum {
     /// Example:
     ///
     /// ```
-    /// use fixed_denominator_rational_numbers::{UFDRNum};
+    /// use fixed_denominator_rational_numbers::*;
     ///
     /// assert_eq!(UFDRNum::from(2_u8) - UFDRNum::ONE, UFDRNum::ONE);
     /// assert_eq!(UFDRNum::from(7.5) - UFDRNum::from(5.2), UFDRNum::from(2.3));
@@ -228,7 +240,7 @@ impl Mul for UFDRNum {
     /// Example:
     ///
     /// ```
-    /// use fixed_denominator_rational_numbers::{UFDRNum, debug::ApproxEq};
+    /// use fixed_denominator_rational_numbers::{self::*, debug::ApproxEq};
     /// use approximately_equal::assert_approx_eq;
     ///
     /// assert_approx_eq!(UFDRNum::from(0.5) * UFDRNum::from(2_u8), UFDRNum::ONE);
@@ -261,7 +273,7 @@ impl<U: UnsignedInteger> Mul<U> for UFDRNum {
     /// Example:
     ///
     /// ```
-    /// use fixed_denominator_rational_numbers::{UFDRNum};
+    /// use fixed_denominator_rational_numbers::*;
     ///
     /// assert_eq!(UFDRNum::ONE * 5_u32, UFDRNum::from(5_u32));
     /// ```
@@ -287,7 +299,7 @@ impl Div for UFDRNum {
     /// Example:
     ///
     /// ```
-    /// use fixed_denominator_rational_numbers::{UFDRNum, debug::ApproxEq};
+    /// use fixed_denominator_rational_numbers::{self::*, debug::ApproxEq};
     /// use approximately_equal::assert_approx_eq;
     ///
     /// assert_eq!(UFDRNum::from(5_u64) / UFDRNum::from(10_u64), UFDRNum::from_rational_num(1,2));
@@ -317,7 +329,7 @@ impl<U: UnsignedInteger> Div<U> for UFDRNum {
     /// Example:
     ///
     /// ```
-    /// use fixed_denominator_rational_numbers::{UFDRNum, debug::ApproxEq};
+    /// use fixed_denominator_rational_numbers::{self::*, debug::ApproxEq};
     /// use approximately_equal::assert_approx_eq;
     ///
     /// assert_approx_eq!(UFDRNum::ONE / 4_u32, UFDRNum::from(0.25), 2);
@@ -344,7 +356,7 @@ impl Rem for UFDRNum {
     /// Example:
     ///
     /// ```
-    /// use fixed_denominator_rational_numbers::UFDRNum;
+    /// use fixed_denominator_rational_numbers::*;
     ///
     /// assert_eq!(UFDRNum::ONE % (UFDRNum::ONE * 4_u8), UFDRNum::ONE);
     /// assert_eq!((UFDRNum::ONE * 5u8) % (UFDRNum::ONE * 4_u8), UFDRNum::ONE);
@@ -368,7 +380,7 @@ impl<U: UnsignedInteger> Rem<U> for UFDRNum {
     /// Example:
     ///
     /// ```
-    /// use fixed_denominator_rational_numbers::{UFDRNum, debug::ApproxEq};
+    /// use fixed_denominator_rational_numbers::{self::*, debug::ApproxEq};
     /// use approximately_equal::assert_approx_eq;
     ///
     /// assert_approx_eq!(UFDRNum::ONE / 4_u32, UFDRNum::from(0.25), 2);
@@ -383,5 +395,13 @@ impl<U: UnsignedInteger> Rem<U> for UFDRNum {
 impl<U: UnsignedInteger> RemAssign<U> for UFDRNum {
     fn rem_assign(&mut self, rhs: U) {
         *self = *self % rhs;
+    }
+}
+
+impl Neg for UFDRNum {
+    type Output = FDRNum;
+
+    fn neg(self) -> Self::Output {
+        FDRNum((self.0 as i128).neg())
     }
 }
