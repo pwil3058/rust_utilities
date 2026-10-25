@@ -23,8 +23,13 @@ macro_rules! impl_into_as_prop {
 }
 
 pub trait AsProportion: Sized + Copy + PartialEq + PartialOrd + Debug {
-    const ONE: Self;
     const ZERO: Self;
+    const ALMOST_ZERO: Self;
+    const ONE: Self;
+    const ALMOST_ONE: Self;
+    const ONE_QUARTER: Self;
+    const HALF: Self;
+    const THREE_QUARTERS: Self;
 
     fn is_valid_proportion(&self) -> bool {
         *self >= Self::ZERO && *self <= Self::ONE
@@ -33,47 +38,55 @@ pub trait AsProportion: Sized + Copy + PartialEq + PartialOrd + Debug {
 
 impl AsProportion for f64 {
     const ONE: Self = 1.0;
+    const ALMOST_ONE: Self = 1.0 - 1.0e-20;
     const ZERO: Self = 0.0;
+    const ALMOST_ZERO: Self = 1.0e-20;
+    const ONE_QUARTER: Self = 0.25;
+    const HALF: Self = 0.5;
+    const THREE_QUARTERS: Self = 0.75;
 }
 
-impl AsProportion for u8 {
-    const ONE: Self = u8::MAX;
-    const ZERO: Self = 0;
+macro_rules! impl_as_proportion {
+    ($unsigned:ty) => {
+        impl AsProportion for $unsigned {
+            const ZERO: Self = 0;
+            const ALMOST_ZERO: Self = 1;
+            const ONE: Self = Self::MAX;
+            const ALMOST_ONE: Self = Self::MAX - 1;
+            const ONE_QUARTER: Self = Self::MAX / 4;
+            const HALF: Self = Self::MAX / 2;
+            const THREE_QUARTERS: Self = Self::MAX / 4 * 3;
+        }
+    };
 }
 
-impl AsProportion for u16 {
-    const ONE: Self = u16::MAX;
-    const ZERO: Self = 0;
-}
+impl_as_proportion!(u8);
+impl_as_proportion!(u16);
+impl_as_proportion!(u32);
+impl_as_proportion!(u64);
 
-impl AsProportion for u32 {
-    const ONE: Self = u32::MAX;
-    const ZERO: Self = 0;
-}
-
-impl AsProportion for u64 {
-    const ONE: Self = u64::MAX;
-    const ZERO: Self = 0;
-}
-
-pub trait IntoFromRawU128: Into<u128> + TryFrom<u128> {
+pub trait IntoFromRawU128 {
     /// Raw from an u128 value (will panic if value is greater than the maximum value of Self)
+    fn from_u128(value: u128) -> Self;
+    /// Into a raw u128 value
+    fn into_u128(self) -> u128;
+}
+
+impl<U: UnsignedInteger> IntoFromRawU128 for U {
     fn from_u128(value: u128) -> Self {
         value
             .try_into()
             .map_err(|_| "whatever")
             .expect("Value is greater than the maximum value of Self")
     }
-    /// Into a raw u128 value
+
     fn into_u128(self) -> u128 {
         self.into()
     }
 }
 
-impl<U: UnsignedInteger> IntoFromRawU128 for U {}
-
 pub trait Unsigned: Copy + Debug {}
-pub trait UnsignedInteger: Unsigned + IntoFromRawU128 {}
+pub trait UnsignedInteger: Unsigned + Into<u128> + TryFrom<u128> {}
 
 impl Unsigned for u8 {}
 impl Unsigned for u16 {}
@@ -85,7 +98,6 @@ impl UnsignedInteger for u8 {}
 impl UnsignedInteger for u16 {}
 impl UnsignedInteger for u32 {}
 impl UnsignedInteger for u64 {}
-// impl UnsignedInteger for u128 {}
 
 pub trait IntoFromRawI128 {
     /// Raw from an i128 value (will panic if value is greater than the maximum value of Self)
@@ -119,7 +131,6 @@ impl SignedInteger for i8 {}
 impl SignedInteger for i16 {}
 impl SignedInteger for i32 {}
 impl SignedInteger for i64 {}
-// impl SignedInteger for i128 {}
 
 pub trait Float:
     Signed + Sized + Mul<Output = Self> + Sub<Output = Self> + From<f32> + Debug
@@ -131,30 +142,7 @@ pub trait Float:
     fn from_i128(i: i128) -> Self;
 }
 
-impl Signed for f32 {}
 impl Signed for f64 {}
-
-impl Float for f32 {
-    fn is_negative(&self) -> bool {
-        *self < 0.0
-    }
-
-    fn into_u128(self) -> u128 {
-        self as u128
-    }
-
-    fn into_i128(self) -> i128 {
-        self as i128
-    }
-
-    fn from_u128(u: u128) -> Self {
-        u as Self
-    }
-
-    fn from_i128(i: i128) -> Self {
-        i as Self
-    }
-}
 
 impl Float for f64 {
     fn is_negative(&self) -> bool {

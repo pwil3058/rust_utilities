@@ -3,7 +3,8 @@
 use approximately_equal::assert_approx_eq;
 
 use crate::{
-    AsProportion, FDRNum, FromAsProp, IntoAsProp, NumberConstants, Prop, UFDRNum, debug::ApproxEq,
+    AsProportion, FDRNum, FromAsProp, IntoAsProp, IntoProp, NumberConstants, Prop, UFDRNum,
+    debug::ApproxEq,
 };
 
 #[test]
@@ -197,6 +198,7 @@ fn from_prop_to_ufdrn() {
         UFDRNum::from_rational_num(2, 5),
         Prop::from_fraction(2, 5).into_as_prop()
     );
+    assert_eq!(UFDRNum(1), UFDRNum::from_as_prop(1u64));
 }
 
 #[test]
@@ -221,4 +223,13 @@ fn from_prop_to_fdrn() {
         FDRNum::from_rational_num(2, 5),
         Prop::from_fraction(2, 5).into_as_prop()
     );
+}
+
+#[test]
+fn into_prop() {
+    assert_eq!(
+        UFDRNum::from_rational_num(1, 4).into_prop(),
+        Prop::from_fraction(1, 4)
+    );
+    assert_eq!(1u64.into_prop(), Prop(1));
 }

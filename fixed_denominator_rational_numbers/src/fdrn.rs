@@ -14,13 +14,14 @@ use crate::{
 
 /// Fixed denominator rational number as an approximate representation of real numbers
 #[derive(Serialize, Deserialize, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
-pub struct FDRNum(pub(crate) i128);
+pub struct FDRNum(pub i128);
 
 impl Signed for FDRNum {}
 
 impl NumberConstants for FDRNum {
     const ZERO: Self = Self(0);
     const ONE: Self = Self(Self::DENOMINATOR);
+    const ALMOST_ONE: Self = Self(Self::DENOMINATOR - 1);
     const TWO: Self = Self(Self::DENOMINATOR * 2);
     const THREE: Self = Self(Self::DENOMINATOR * 3);
 

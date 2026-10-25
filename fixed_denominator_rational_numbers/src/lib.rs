@@ -14,6 +14,7 @@ pub use useful_traits::*;
 pub trait NumberConstants {
     const ZERO: Self;
     const ONE: Self;
+    const ALMOST_ONE: Self;
     const TWO: Self;
     const THREE: Self;
 

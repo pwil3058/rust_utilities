@@ -18,13 +18,14 @@ use crate::{
 
 /// Fixed denominator rational number as an approximate representation of real numbers
 #[derive(Serialize, Deserialize, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord, Default)]
-pub struct UFDRNum(pub(crate) u128);
+pub struct UFDRNum(pub u128);
 
 impl Unsigned for UFDRNum {}
 
 impl NumberConstants for UFDRNum {
     const ZERO: Self = Self(0);
     const ONE: Self = Self(Self::DENOMINATOR);
+    const ALMOST_ONE: Self = Self(Self::DENOMINATOR - 1);
     const TWO: Self = Self(Self::DENOMINATOR * 2);
     const THREE: Self = Self(Self::DENOMINATOR * 3);
 
@@ -34,10 +35,6 @@ impl NumberConstants for UFDRNum {
 
 impl UFDRNum {
     pub const DENOMINATOR: u128 = u64::MAX as u128;
-
-    pub fn is_proportion(self) -> bool {
-        self <= Self::ONE
-    }
 
     /// Generate an UFDRNum from a rational number
     ///
@@ -63,18 +60,31 @@ impl UFDRNum {
             if enumerator == denominator {
                 Self::ONE
             } else if denominator == 1 {
-                Self(enumerator * Self::DENOMINATOR)
+                let internal_val = enumerator
+                    .checked_mul(Self::DENOMINATOR)
+                    .expect("Logic Error: Rational number scale exceeds max u128 capacity");
+                return Self(internal_val);
             } else {
                 let shift = enumerator.leading_zeros();
                 let temp = (enumerator << shift) / denominator;
                 use Ordering::*;
                 match shift.cmp(&64) {
-                    Less => UFDRNum(temp << (64 - shift)),
+                    Less => {
+                        let shift_amount = 64 - shift;
+                        let final_val = temp.checked_shl(shift_amount).expect(
+                            "Logic Error: Left-shift overflowed! Fraction exceeds capacity.",
+                        );
+                        UFDRNum(final_val)
+                    }
                     Equal => UFDRNum(temp),
                     Greater => UFDRNum(temp >> (shift - 64)),
                 }
             }
         }
+    }
+
+    pub fn is_proportion(self) -> bool {
+        self <= Self::ONE
     }
 
     /// Return the square root of our value.

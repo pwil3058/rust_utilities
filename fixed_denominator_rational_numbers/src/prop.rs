@@ -15,8 +15,13 @@ use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 pub struct Prop(pub(crate) u64);
 
 impl AsProportion for Prop {
-    const ONE: Self = Self(u64::MAX);
     const ZERO: Self = Self(0);
+    const ALMOST_ZERO: Self = Self(1);
+    const ONE: Self = Self(u64::MAX);
+    const ALMOST_ONE: Self = Self(u64::MAX - 1);
+    const ONE_QUARTER: Self = Self(u64::ONE_QUARTER);
+    const HALF: Self = Self(u64::HALF);
+    const THREE_QUARTERS: Self = Self(u64::THREE_QUARTERS);
 }
 
 impl Prop {
@@ -55,6 +60,11 @@ impl Prop {
                 Self(scaled.isqrt() as u64)
             }
         }
+    }
+
+    /// Return the complement of this proportion
+    pub fn complement(self) -> Self {
+        Self::ONE - self
     }
 }
 
@@ -134,6 +144,7 @@ impl<U: AsProportion + IntoFromRawU128 + Debug> FromAsProp<Prop> for U {
     /// assert_eq!(u8::from_as_prop(Prop::from_as_prop(0.999)), u8::MAX);
     /// assert_eq!(u8::from_as_prop(Prop::from_as_prop(0.998)), u8::MAX - 1);
     /// assert_eq!(u8::MAX - 1, Prop::from_as_prop(0.998).into_as_prop());
+    /// assert_eq!(23_u64, Prop::from_as_prop(23_u64).into_as_prop());
     /// ```
     fn from_as_prop(prop: Prop) -> Self {
         let dividend = prop.0 as u128 * U::ONE.into_u128();
@@ -149,7 +160,7 @@ impl<U: AsProportion + IntoFromRawU128> IntoAsProp<U> for Prop {
     }
 }
 
-impl<U: AsProportion + UnsignedInteger> FromAsProp<U> for Prop {
+impl<U: AsProportion + IntoFromRawU128> FromAsProp<U> for Prop {
     /// Convert from an unsigned integer treated as a proportion.
     ///
     /// Examples:
@@ -168,57 +179,57 @@ impl<U: AsProportion + UnsignedInteger> FromAsProp<U> for Prop {
     }
 }
 
-impl<U: AsProportion + UnsignedInteger> IntoAsProp<Prop> for U {
+impl<U: AsProportion + IntoFromRawU128> IntoAsProp<Prop> for U {
     fn into_as_prop(self) -> Prop {
         Prop::from_as_prop(self)
     }
 }
 
-impl<U: AsProportion + UnsignedInteger + IntoAsProp<Prop>> FromAsProp<UFDRNum> for U {
+impl<U: AsProportion + IntoFromRawU128 + IntoAsProp<Prop>> FromAsProp<UFDRNum> for U {
     fn from_as_prop(num: UFDRNum) -> Self {
         debug_assert!(num >= UFDRNum::ZERO && num <= UFDRNum::ONE);
         Prop(num.0 as u64).into_as_prop()
     }
 }
 
-impl<U: AsProportion + UnsignedInteger + IntoAsProp<Prop>> IntoAsProp<U> for UFDRNum {
+impl<U: AsProportion + IntoFromRawU128 + IntoAsProp<Prop>> IntoAsProp<U> for UFDRNum {
     fn into_as_prop(self) -> U {
         U::from_as_prop(self)
     }
 }
 
-impl<U: AsProportion + UnsignedInteger + IntoAsProp<Prop>> FromAsProp<U> for UFDRNum {
+impl<U: AsProportion + IntoFromRawU128 + IntoAsProp<Prop>> FromAsProp<U> for UFDRNum {
     fn from_as_prop(a: U) -> Self {
         Self(a.into_as_prop().0 as u128)
     }
 }
 
-impl<U: AsProportion + UnsignedInteger + IntoAsProp<Prop>> IntoAsProp<UFDRNum> for U {
+impl<U: AsProportion + IntoFromRawU128 + IntoAsProp<Prop>> IntoAsProp<UFDRNum> for U {
     fn into_as_prop(self) -> UFDRNum {
         UFDRNum::from_as_prop(self)
     }
 }
 
-impl<U: AsProportion + UnsignedInteger + IntoAsProp<Prop>> FromAsProp<FDRNum> for U {
+impl<U: AsProportion + IntoFromRawU128 + IntoAsProp<Prop>> FromAsProp<FDRNum> for U {
     fn from_as_prop(num: FDRNum) -> Self {
         debug_assert!(num >= FDRNum::ZERO && num <= FDRNum::ONE);
         Prop(num.0 as u64).into_as_prop()
     }
 }
 
-impl<U: AsProportion + UnsignedInteger + IntoAsProp<Prop>> IntoAsProp<U> for FDRNum {
+impl<U: AsProportion + IntoFromRawU128 + IntoAsProp<Prop>> IntoAsProp<U> for FDRNum {
     fn into_as_prop(self) -> U {
         U::from_as_prop(self)
     }
 }
 
-impl<U: AsProportion + UnsignedInteger + IntoAsProp<Prop>> FromAsProp<U> for FDRNum {
+impl<U: AsProportion + IntoFromRawU128 + IntoAsProp<Prop>> FromAsProp<U> for FDRNum {
     fn from_as_prop(a: U) -> Self {
         Self(a.into_as_prop().0 as i128)
     }
 }
 
-impl<U: AsProportion + UnsignedInteger + IntoAsProp<Prop>> IntoAsProp<FDRNum> for U {
+impl<U: AsProportion + IntoFromRawU128 + IntoAsProp<Prop>> IntoAsProp<FDRNum> for U {
     fn into_as_prop(self) -> FDRNum {
         FDRNum::from_as_prop(self)
     }
@@ -247,6 +258,18 @@ macro_rules! impl_into_from_as_prop_number {
 
 impl_into_from_as_prop_number!(UFDRNum, u128, Prop);
 impl_into_from_as_prop_number!(FDRNum, i128, Prop);
+
+pub trait IntoProp: IntoAsProp<Prop> + Sized + Copy {
+    fn into_prop(self) -> Prop {
+        self.into_as_prop()
+    }
+}
+
+impl IntoProp for UFDRNum {}
+impl IntoProp for FDRNum {}
+impl IntoProp for Prop {}
+impl IntoProp for f64 {}
+impl<U: UnsignedInteger + IntoAsProp<Prop>> IntoProp for U {}
 
 impl Mul for Prop {
     type Output = Self;
@@ -331,7 +354,7 @@ impl<U: UnsignedInteger> Div<U> for Prop {
     /// assert_eq!(Prop::from_fraction(3, 5) / 2u8, Prop::from_fraction(3, 10));
     /// ```
     fn div(self, rhs: U) -> Self {
-        Self((self.0 as u128 / rhs.into()) as u64)
+        Self((self.0 as u128 / rhs.into_u128()) as u64)
     }
 }
 
@@ -377,7 +400,7 @@ impl Sub for Prop {
     /// assert_eq!(Prop::from_fraction(3, 5) - Prop::from_fraction(6, 10), Prop::ZERO);
     /// ```
     fn sub(self, rhs: Self) -> Self {
-        debug_assert!(self.0 >= rhs.0);
+        assert!(self.0 >= rhs.0);
         Self(self.0 - rhs.0)
     }
 }
@@ -424,6 +447,7 @@ impl Div<Prop> for UFDRNum {
     type Output = Self;
 
     fn div(self, rhs: Prop) -> Self {
+        assert_ne!(rhs.0, 0);
         if rhs == Prop::ONE {
             self
         } else {
