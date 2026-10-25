@@ -259,18 +259,53 @@ macro_rules! impl_into_from_as_prop_number {
 impl_into_from_as_prop_number!(UFDRNum, u128, Prop);
 impl_into_from_as_prop_number!(FDRNum, i128, Prop);
 
-pub trait IntoProp: IntoAsProp<Prop> + Sized + Copy {
+pub trait IntoProp: Sized + Copy {
+    fn into_prop(self) -> Prop;
+}
+
+impl IntoProp for UFDRNum {
     fn into_prop(self) -> Prop {
-        self.into_as_prop()
+        Prop::from_as_prop(self)
     }
 }
 
-impl IntoProp for UFDRNum {}
-impl IntoProp for FDRNum {}
-impl IntoProp for Prop {}
-impl IntoProp for f64 {}
-impl<U: UnsignedInteger + IntoAsProp<Prop>> IntoProp for U {}
+impl IntoProp for FDRNum {
+    fn into_prop(self) -> Prop {
+        Prop::from_as_prop(self)
+    }
+}
 
+impl IntoProp for Prop {
+    fn into_prop(self) -> Prop {
+        Prop::from_as_prop(self)
+    }
+}
+
+impl IntoProp for f64 {
+    fn into_prop(self) -> Prop {
+        Prop::from_as_prop(self)
+    }
+}
+
+impl<U: AsProportion + UnsignedInteger> IntoProp for U {
+    fn into_prop(self) -> Prop {
+        Prop::from_as_prop(self)
+    }
+}
+
+pub trait FromProp: Sized + Copy + FromAsProp<Prop> {
+    fn from_prop(prop: Prop) -> Self {
+        Self::from_as_prop(prop)
+    }
+}
+
+impl FromProp for UFDRNum {}
+impl FromProp for FDRNum {}
+impl FromProp for Prop {}
+impl FromProp for f64 {}
+impl<U: UnsignedInteger + FromAsProp<Prop>> FromProp for U {}
+
+// Ops
 impl Mul for Prop {
     type Output = Self;
 
